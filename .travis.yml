@@ -8,6 +8,7 @@ matrix:
   include:
 
     - name: make (gcc-arm-none-eabi-7)
+      script: make
       language: c
       addons:
         apt:
@@ -23,9 +24,9 @@ matrix:
       - popd
       - export PATH=$HOME/arm-gcc-toolchain/bin:$PATH
       before_script: arm-none-eabi-gcc --version
-      script: make
 
     - name: make (gcc-arm-none-eabi-5)
+      script: make
       language: c
       addons:
         apt:
@@ -41,51 +42,50 @@ matrix:
       - popd
       - export PATH=$HOME/arm-gcc-toolchain/bin:$PATH
       before_script: arm-none-eabi-gcc --version
-      script: make
 
     - name: pio hoverboard
-      language: c
+      script: platformio run -e hoverboard
+      language: python
       python:
         - "2.7"
       install:
       - pip install -U platformio
       - platformio update
-      script: platformio run -e hoverboard
       cache:
       - directories: "~/.platformio"
 
 
     - name: pio control_softwareserial
-      language: c
+      script: platformio run -e control_softwareserial
+      language: python
       python:
         - "2.7"
       install:
       - pip install -U platformio
       - platformio update
-      script: platformio run -e control_softwareserial
       cache:
       - directories: "~/.platformio"
 
 
     - name: pio control_usart2
-      language: c
+      script: platformio run -e control_usart2
+      language: python
       python:
         - "2.7"
       install:
       - pip install -U platformio
       - platformio update
-      script: platformio run -e control_usart2
       cache:
       - directories: "~/.platformio"
 
 
     - name: pio control_usart3
-      language: c
+      script: platformio run -e control_usart3
+      language: python
       python:
         - "2.7"
       install:
       - pip install -U platformio
       - platformio update
-      script: platformio run -e control_usart3
       cache:
       - directories: "~/.platformio"
