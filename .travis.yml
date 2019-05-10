@@ -5,6 +5,8 @@ sudo: false
 
 language: c
 
+python:
+  - "2.7"
 
 matrix:
   fast_finish: true
@@ -46,10 +48,37 @@ matrix:
       before_script: arm-none-eabi-gcc --version
       script: make
 
-    - name: platformio
+    - name: pio hoverboard
       install:
       - pip install -U platformio
       - platformio update
-      script: platformio run
+      script: platformio run -e hoverboard
+      cache:
+      - directories: "~/.platformio"
+
+
+    - name: pio control_softwareserial
+      install:
+      - pip install -U platformio
+      - platformio update
+      script: platformio run -e control_softwareserial
+      cache:
+      - directories: "~/.platformio"
+
+
+    - name: pio control_usart2
+      install:
+      - pip install -U platformio
+      - platformio update
+      script: platformio run -e control_usart2
+      cache:
+      - directories: "~/.platformio"
+
+
+    - name: pio control_usart3
+      install:
+      - pip install -U platformio
+      - platformio update
+      script: platformio run -e control_usart3
       cache:
       - directories: "~/.platformio"
