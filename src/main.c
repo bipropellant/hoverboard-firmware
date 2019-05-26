@@ -27,6 +27,7 @@
 #include "sensorcoms.h"
 #include "flashaccess.h"
 #include "protocol.h"
+#include "protocolfunctions.h"
 #include "bldc.h"
 #include "hallinterrupts.h"
 #include "softwareserial.h"
@@ -108,7 +109,7 @@ DEADRECKONER *deadreconer;
 INTEGER_XYT_POSN xytPosn;
 
 typedef struct tag_power_button_info {
-  int startup_button_held;      // indicates power button was active at startup 
+  int startup_button_held;      // indicates power button was active at startup
   int button_prev;              // last value of power button
   unsigned int button_held_ms;  // ms for which the button has been held down
 } POWER_BUTTON_INFO;
@@ -342,55 +343,8 @@ int main(void) {
   #endif
 
   #ifdef INCLUDE_PROTOCOL
-
-    #ifdef SOFTWARE_SERIAL
-
-      PROTOCOL_STAT sSoftwareSerial;
-
-      if(protocol_init(&sSoftwareSerial) != 0) consoleLog("Protocol Init failed\r\n");
-
-      sSoftwareSerial.send_serial_data=softwareserial_Send;
-      sSoftwareSerial.send_serial_data_wait=softwareserial_Send_Wait;
-      sSoftwareSerial.timeout1 = 500;
-      sSoftwareSerial.timeout2 = 100;
-      sSoftwareSerial.allow_ascii = 1;
-
-    #endif
-
-    #if defined(SERIAL_USART2_IT) && !defined(READ_SENSOR)
-
-      extern int USART2_IT_send(unsigned char *data, int len);
-
-      PROTOCOL_STAT sUSART2;
-
-      if(protocol_init(&sUSART2) != 0) consoleLog("Protocol Init failed\r\n");
-
-      sUSART2.send_serial_data=USART2_IT_send;
-      sUSART2.send_serial_data_wait=USART2_IT_send;
-      sUSART2.timeout1 = 500;
-      sUSART2.timeout2 = 100;
-      sUSART2.allow_ascii = 1;
-
-    #endif
-
-    #if defined(SERIAL_USART3_IT) && !defined(READ_SENSOR)
-
-      extern int USART3_IT_send(unsigned char *data, int len);
-
-      PROTOCOL_STAT sUSART3;
-
-      if(protocol_init(&sUSART3) != 0) consoleLog("Protocol Init failed\r\n");
-
-      sUSART3.send_serial_data=USART3_IT_send;
-      sUSART3.send_serial_data_wait=USART3_IT_send;
-      sUSART3.timeout1 = 500;
-      sUSART3.timeout2 = 100;
-      sUSART3.allow_ascii = 1;
-
-    #endif
-
+    if(setup_protocol() != 0) consoleLog("Protocol Init failed\r\n");
     int last_control_type = CONTROL_TYPE_NONE;
-
   #endif
 
   #ifdef DEBUG_I2C_LCD
@@ -888,7 +842,7 @@ int main(void) {
     ////////////////////////////////
     // take stats
     timeStats.now_us = HallGetuS();
-    
+
     timeStats.main_interval_us = timeStats.now_us - timeStats.time_in_us;
     timeStats.main_delay_us = timeStats.processing_in_us - timeStats.time_in_us;
     timeStats.main_processing_us = timeStats.now_us - timeStats.processing_in_us;
@@ -935,7 +889,7 @@ void check_power_button(){
       } else {
         // button remains pressed
         // indicate how long it has been pressed by colour
-        if ((power_button_info.button_held_ms > 100) && 
+        if ((power_button_info.button_held_ms > 100) &&
             (power_button_info.button_held_ms < 2000) )
         {
         #if defined CONTROL_SENSOR
@@ -944,7 +898,7 @@ void check_power_button(){
           sensor_set_flash(1, 1);
         #endif
         }
-        if ((power_button_info.button_held_ms >= 2000) && 
+        if ((power_button_info.button_held_ms >= 2000) &&
             (power_button_info.button_held_ms < 5000) )
         {
         #if defined CONTROL_SENSOR
@@ -953,7 +907,7 @@ void check_power_button(){
           sensor_set_flash(1, 2);
         #endif
         }
-        if ((power_button_info.button_held_ms > 5000) && 
+        if ((power_button_info.button_held_ms > 5000) &&
             (power_button_info.button_held_ms < 10000) )
         {
         #if defined CONTROL_SENSOR
@@ -962,7 +916,7 @@ void check_power_button(){
           sensor_set_flash(1, 3);
         #endif
         }
-        if ((power_button_info.button_held_ms > 10000) && 
+        if ((power_button_info.button_held_ms > 10000) &&
             (power_button_info.button_held_ms < 100000) )
         {
         #if defined CONTROL_SENSOR
@@ -1019,16 +973,16 @@ void check_power_button(){
 
         // power button held for >100ms < 2s -> power off
         // (only if it had been released since startup)
-        if ((power_button_info.button_held_ms >= 100) && 
-            (power_button_info.button_held_ms < 2000) && 
-            weakr == 0 && 
+        if ((power_button_info.button_held_ms >= 100) &&
+            (power_button_info.button_held_ms < 2000) &&
+            weakr == 0 &&
             weakl == 0) {
           enable = 0;
           //while (HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN));
           consoleLog("power off by button\r\n");
           poweroff();
         }
-        
+
         // always stop flash after done/released regardless
       #if defined CONTROL_SENSOR
         sensor_set_flash(0, 0);
