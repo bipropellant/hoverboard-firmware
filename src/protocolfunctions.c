@@ -10,7 +10,22 @@
 #include "comms.h"
 #include "defines.h"
 
-#ifdef INCLUDE_PROTOCOL
+#include "stm32f1xx_hal.h"
+#ifdef CONTROL_SENSOR
+    #include "sensorcoms.h"
+#endif
+#ifdef HALL_INTERRUPTS
+    #include "hallinterrupts.h"
+#endif
+#include "deadreckoner.h"
+
+#include <string.h>
+#include <stdlib.h>
+
+
+#ifdef INCLUDE_PROTOCOL // Everything from here on only when INCLUDE_PROTOCOL
+
+
 
 #ifdef SOFTWARE_SERIAL
     PROTOCOL_STAT sSoftwareSerial;
@@ -21,6 +36,276 @@
 #if defined(SERIAL_USART3_IT) && !defined(READ_SENSOR)
     PROTOCOL_STAT sUSART3;
 #endif
+
+extern volatile uint32_t timeout; // global variable for timeout
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x09 enable
+
+extern uint8_t enable; // global variable for motor enable
+extern void init_PID_control(); // from main
+
+//////////////////////////////////////////////
+// make values safe before we change enable...
+
+void fn_enable ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_PRE_WRITE:
+            if (!enable) {
+                #ifdef HALL_INTERRUPTS
+                    // assume we will enable,
+                    // set wanted posn to current posn, else we may rush into a wall
+                    PosnData.wanted_posn_mm[0] = HallData[0].HallPosn_mm;
+                    PosnData.wanted_posn_mm[1] = HallData[1].HallPosn_mm;
+                #endif
+
+                // clear speeds to zero
+                SpeedData.wanted_speed_mm_per_sec[0] = 0;
+                SpeedData.wanted_speed_mm_per_sec[1] = 0;
+                PWMData.pwm[0] = 0;
+                PWMData.pwm[1] = 0;
+                #ifdef FLASH_STORAGE
+                        init_PID_control();
+                #endif
+            }
+            break;
+    }
+}
+
+
+#ifdef CONTROL_SENSOR
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x01 sensor_data
+
+extern SENSOR_DATA sensor_data[2];
+
+// used to send only pertinent data, not the whole structure
+SENSOR_FRAME sensor_copy[2];
+
+void fn_SensorData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_PRE_READ:
+            // copy just sensor input data
+            sensor_copy[0] = sensor_data[0].complete;
+            sensor_copy[1] = sensor_data[1].complete;
+            break;
+    }
+}
+
+#endif
+
+#ifdef HALL_INTERRUPTS
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x02 HallData
+
+/* see hallinterrupts.h */
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x03 SpeedData
+
+SPEED_DATA SpeedData = {
+    {0, 0},
+
+    600, // max power (PWM)
+    -600,  // min power
+    40 // minimum mm/s which we can ask for
+};
+
+void fn_SpeedData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_PRE_WRITE:
+            control_type = CONTROL_TYPE_SPEED;
+            timeout = 0;
+            break;
+    }
+}
+
+#ifdef HALL_INTERRUPTS
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x04 Position
+
+POSN Position;
+
+void fn_Position ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_PRE_READ:
+            ((POSN*) (param->ptr))->LeftAbsolute = HallData[0].HallPosn_mm;
+            ((POSN*) (param->ptr))->LeftOffset = HallData[0].HallPosn_mm - HallData[0].HallPosn_mm_lastread;
+            ((POSN*) (param->ptr))->RightAbsolute = HallData[1].HallPosn_mm;
+            ((POSN*) (param->ptr))->RightOffset = HallData[1].HallPosn_mm - HallData[1].HallPosn_mm_lastread;
+            break;
+
+        case FN_TYPE_POST_WRITE:
+            HallData[0].HallPosn_mm_lastread = ((POSN*) (param->ptr))->LeftAbsolute;
+            HallData[1].HallPosn_mm_lastread = ((POSN*) (param->ptr))->RightAbsolute;
+            break;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x05 PositionIncr
+
+POSN_INCR PositionIncr;
+
+void fn_PositionIncr ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_POST_WRITE:
+            // if switching to control type POSITION,
+            if ((control_type != CONTROL_TYPE_POSITION) || !enable) {
+                control_type = CONTROL_TYPE_POSITION;
+                // then make sure we won't rush off somwehere strange
+                // by setting our wanted posn to where we currently are...
+                fn_enable( s, param, FN_TYPE_PRE_WRITE, content, 0); // TODO: I don't like calling this with a param entry which does not fit to the handler..
+            }
+
+            enable = 1;
+            timeout = 0;
+
+            // increment our wanted position
+            PosnData.wanted_posn_mm[0] += ((POSN_INCR*) (param->ptr))->Left;
+            PosnData.wanted_posn_mm[1] += ((POSN_INCR*) (param->ptr))->Right;
+            break;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x06 PosnData
+
+POSN_DATA PosnData = {
+    {0, 0},
+
+    200, // max pwm in posn mode
+    70, // min pwm in posn mode
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x07 RawPosition
+
+POSN RawPosition;
+
+
+void fn_RawPosition ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_PRE_READ:
+            ((POSN*) (param->ptr))->LeftAbsolute = HallData[0].HallPosn;
+            ((POSN*) (param->ptr))->LeftOffset = HallData[0].HallPosn - HallData[0].HallPosn_lastread;
+            ((POSN*) (param->ptr))->RightAbsolute = HallData[1].HallPosn;
+            ((POSN*) (param->ptr))->RightOffset = HallData[1].HallPosn - HallData[1].HallPosn_lastread;
+            break;
+
+        case FN_TYPE_POST_WRITE:
+            HallData[0].HallPosn_lastread = ((POSN*) (param->ptr))->LeftAbsolute;
+            HallData[1].HallPosn_lastread = ((POSN*) (param->ptr))->RightAbsolute;
+            break;
+    }
+}
+
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x0A disablepoweroff
+
+extern uint8_t disablepoweroff;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x0B debug_out
+
+extern uint8_t debug_out;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x0C xytPosn
+
+// ded reckoning posn
+extern INTEGER_XYT_POSN xytPosn;
+
+void fn_xytPosn ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ){
+    switch (fn_type) {
+        case FN_TYPE_POST_WRITE:
+            if (deadreconer) {
+                // reset xyt
+                reset( deadreconer, 1 );
+            }
+            break;
+    }
+
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x0D PWMData and 0x0E PWMData.pwm
+
+PWM_DATA PWMData = {
+    .pwm[0] = 0,
+    .pwm[1] = 0,
+    .speed_max_power =  600,
+    .speed_min_power = -600,
+    .speed_minimum_pwm = 40 // guard value, below this set to zero
+};
+
+extern int pwms[2];
+
+void fn_PWMData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_PRE_READRESPONSE:
+        case FN_TYPE_PRE_WRITE:
+            control_type = CONTROL_TYPE_PWM;
+            timeout = 0;
+            break;
+
+        case FN_TYPE_POST_READRESPONSE:
+        case FN_TYPE_POST_WRITE:
+            for (int i = 0; i < 2; i++) {
+                if (((PWM_DATA*) (param->ptr))->pwm[i] > ((PWM_DATA*) (param->ptr))->speed_max_power) {
+                    ((PWM_DATA*) (param->ptr))->pwm[i] = ((PWM_DATA*) (param->ptr))->speed_max_power;
+                }
+                if (((PWM_DATA*) (param->ptr))->pwm[i] < ((PWM_DATA*) (param->ptr))->speed_min_power) {
+                    ((PWM_DATA*) (param->ptr))->pwm[i] = ((PWM_DATA*) (param->ptr))->speed_min_power;
+                }
+                if ((((PWM_DATA*) (param->ptr))->pwm[i] > 0) && (((PWM_DATA*) (param->ptr))->pwm[i] < ((PWM_DATA*) (param->ptr))->speed_minimum_pwm)) {
+                    ((PWM_DATA*) (param->ptr))->pwm[i] = 0;
+                }
+                if ((((PWM_DATA*) (param->ptr))->pwm[i] < 0) && (((PWM_DATA*) (param->ptr))->pwm[i] > -((PWM_DATA*) (param->ptr))->speed_minimum_pwm)) {
+                    ((PWM_DATA*) (param->ptr))->pwm[i] = 0;
+                }
+            }
+            break;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+// Variable & Functions for 0x21 BuzzerData
+
+BUZZER_DATA BuzzerData = {
+    .buzzerFreq = 0,
+    .buzzerPattern = 0,
+    .buzzerLen = 0,
+};
+
+extern uint8_t buzzerFreq;    // global variable for the buzzer pitch. can be 1, 2, 3, 4, 5, 6, 7...
+extern uint8_t buzzerPattern; // global variable for the buzzer pattern. can be 1, 2, 3, 4, 5, 6, 7...
+extern uint16_t buzzerLen;
+
+void fn_BuzzerData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
+    switch (fn_type) {
+        case FN_TYPE_POST_WRITE:
+            buzzerFreq      = ((BUZZER_DATA*) (param->ptr))->buzzerFreq;
+            buzzerLen       = ((BUZZER_DATA*) (param->ptr))->buzzerLen;
+            buzzerPattern   = ((BUZZER_DATA*) (param->ptr))->buzzerPattern;
+            break;
+
+        case FN_TYPE_PRE_READ:
+            ((BUZZER_DATA*) (param->ptr))->buzzerFreq       = buzzerFreq;
+            ((BUZZER_DATA*) (param->ptr))->buzzerLen        = buzzerLen;
+            ((BUZZER_DATA*) (param->ptr))->buzzerPattern    = buzzerPattern;
+            break;
+    }
+}
+
 
 #ifdef FLASH_STORAGE
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -124,8 +409,53 @@ int setup_protocol() {
     #endif
 
 
-    #ifdef FLASH_STORAGE
+    #ifdef CONTROL_SENSOR
+        errors += setParamVariable( 0x01, UI_NONE, &sensor_copy,                  sizeof(sensor_copy), PARAM_R);
+        setParamHandler(0x01, fn_SensorData);
+    #endif
 
+    #ifdef HALL_INTERRUPTS
+        errors += setParamVariable( 0x02, UI_NONE, (void *)&HallData,                  sizeof(HallData), PARAM_R);
+        setParamHandler(0x02, NULL);
+
+        errors += setParamVariable( 0x03, UI_NONE, &SpeedData,                  sizeof(SpeedData), PARAM_RW);
+        setParamHandler(0x03, fn_SpeedData);
+
+        errors += setParamVariable( 0x04, UI_NONE, &Position,                  sizeof(Position), PARAM_RW);
+        setParamHandler(0x04, fn_Position);
+
+        errors += setParamVariable( 0x05, UI_NONE, &PositionIncr,                  sizeof(PositionIncr), PARAM_RW);
+        setParamHandler(0x05, fn_PositionIncr);
+
+        errors += setParamVariable( 0x06, UI_NONE, &PosnData,                  sizeof(PosnData), PARAM_RW);
+
+        errors += setParamVariable( 0x07, UI_NONE, &RawPosition,                  sizeof(RawPosition), PARAM_RW);
+        setParamHandler(0x07, fn_RawPosition);
+    #endif
+
+        errors += setParamVariable( 0x08, UI_NONE, (void *)&electrical_measurements,                  sizeof(ELECTRICAL_PARAMS), PARAM_R);
+        setParamHandler(0x08, NULL);
+
+        errors += setParamVariable( 0x09, UI_CHAR, &enable,                  sizeof(enable), PARAM_RW);
+        setParamHandler(0x09, fn_enable);
+
+        errors += setParamVariable( 0x0A, UI_CHAR, &disablepoweroff,                  sizeof(disablepoweroff), PARAM_RW);
+
+        errors += setParamVariable( 0x0B, UI_CHAR, &debug_out,                  sizeof(debug_out), PARAM_RW);
+
+        errors += setParamVariable( 0x0C, UI_3LONG, &xytPosn,                  sizeof(xytPosn), PARAM_RW);
+        setParamHandler(0x0C, fn_xytPosn);
+
+        errors += setParamVariable( 0x0D, UI_NONE, &PWMData,                  sizeof(PWMData), PARAM_RW);
+        setParamHandler(0x0D, fn_PWMData);
+
+        errors += setParamVariable( 0x0E, UI_2LONG, &(PWMData.pwm),                  sizeof(PWMData.pwm), PARAM_RW);
+        setParamHandler(0x0E, fn_PWMData);
+
+        errors += setParamVariable( 0x21, UI_NONE, &BuzzerData,                  sizeof(BuzzerData), PARAM_RW);
+        setParamHandler(0x21, fn_BuzzerData);
+
+    #ifdef FLASH_STORAGE
         errors += setParamVariable( 0x80, UI_SHORT, &FlashContent.magic,                  sizeof(short), PARAM_RW);
         setParamHandler(0x80, fn_FlashContentMagic);
 
@@ -157,8 +487,6 @@ int setup_protocol() {
         setParamHandler(0x89, fn_FlashContentMaxCurrLim);
 
         errors += setParamVariable( 0x89, UI_SHORT, &FlashContent.HoverboardEnable,       sizeof(short), PARAM_RW);
-
-
     #endif
 
 
@@ -167,4 +495,4 @@ int setup_protocol() {
 
 }
 
-#endif
+#endif // INCLUDE_PROTOCOL
