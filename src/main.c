@@ -66,8 +66,12 @@ int sensor_control = 0;
 #ifdef READ_SENSOR
 SENSOR_DATA last_sensor_data[2];
 int sensor_stabilise = 0;
-
 #endif
+
+#ifdef INCLUDE_PROTOCOL
+extern int main_ascii_init();
+#endif
+
 uint8_t disablepoweroff = 0;
 int powerofftimer = 0;
 
@@ -347,6 +351,9 @@ int main(void) {
       PROTOCOL_STAT sSoftwareSerial;
 
       if(protocol_init(&sSoftwareSerial) != 0) consoleLog("Protocol Init failed\r\n");
+
+      ascii_init();
+      main_ascii_init();
 
       sSoftwareSerial.send_serial_data=softwareserial_Send;
       sSoftwareSerial.send_serial_data_wait=softwareserial_Send_Wait;
