@@ -25,6 +25,7 @@
 #ifdef CONTROL_SENSOR
     #include "sensorcoms.h"
 #endif
+#include "protocol.h"
 #include "ascii_protocol.h"
 #ifdef HALL_INTERRUPTS
     #include "hallinterrupts.h"
@@ -116,11 +117,6 @@ extern int protocol_post(PROTOCOL_STAT *s, PROTOCOL_MSG2 *msg);
 extern POSN Position;
 extern POSN RawPosition;
 extern POSN_INCR PositionIncr;
-
-///////////////////////////////////////////////////
-// from protocol.c
-extern PARAMSTAT params[];
-extern int paramcount;
 
 
 
@@ -361,7 +357,7 @@ int line_main_timing_stats(PROTOCOL_STAT *s, char *cmd, char *ascii_out) {
 #ifdef HALL_INTERRUPTS
 //case 's': // display stats from main timing
     // we don't have float printing
-    sprintf(ascii_out, "Main loop interval_us %d; lates %d, processing_us %d\r\n", 
+    sprintf(ascii_out, "Main loop interval_us %d; lates %d, processing_us %d\r\n",
         (int)(timeStats.main_interval_ms * 1000), timeStats.main_late_count, (int)(timeStats.main_processing_ms*1000));
 #endif
     return 1;
@@ -388,7 +384,7 @@ int line_debug_control(PROTOCOL_STAT *s, char *cmd, char *ascii_out) {
 
 
 
-// NOTE: needs params 
+// NOTE: needs params
 int line_generic_var(PROTOCOL_STAT *s, char *cmd, char *ascii_out) {
 //case 'f': // setting any parameter marked with uistr
     int len = strlen(cmd);
@@ -407,63 +403,67 @@ int line_generic_var(PROTOCOL_STAT *s, char *cmd, char *ascii_out) {
         } else {
             if ((cmd[1] | 0x20) == 'a'){
                 // read all
-                for (int i = 0; i < paramcount; i++){
-                    if (params[i].uistr){
-                        switch (params[i].ui_type){
-                            case UI_SHORT:
-                                // read it
-                                if (params[i].fn) params[i].fn( s, &params[i], FN_TYPE_PRE_READ, NULL, 0 );
-                                sprintf(ascii_out, "%s(%s): %d\r\n",
-                                        (params[i].description)?params[i].description:"",
-                                        params[i].uistr,
-                                        (int)*(short *)params[i].ptr);
-                                s->send_serial_data_wait((unsigned char *)ascii_out, strlen(ascii_out));
-                                ascii_out[0] = 0; // don't print last one twice
-                                if (params[i].fn) params[i].fn( s, &params[i], FN_TYPE_POST_READ, NULL, 0 );
-                                break;
-                            default:
-                                break;
+                for (int i = 0; i < (sizeof(params)/sizeof(params[0])); i++){
+                    if(params[i] != NULL) {
+                        if (params[i]->uistr){
+                            switch (params[i]->ui_type){
+                                case UI_SHORT:
+                                    // read it
+                                    if (params[i]->fn) params[i]->fn( s, params[i], FN_TYPE_PRE_READ, NULL, 0 );
+                                    sprintf(ascii_out, "%s(%s): %d\r\n",
+                                            (params[i]->description)?params[i]->description:"",
+                                            params[i]->uistr,
+                                            (int)*(short *)params[i]->ptr);
+                                    s->send_serial_data_wait((unsigned char *)ascii_out, strlen(ascii_out));
+                                    ascii_out[0] = 0; // don't print last one twice
+                                    if (params[i]->fn) params[i]->fn( s, params[i], FN_TYPE_POST_READ, NULL, 0 );
+                                    break;
+                                default:
+                                    break;
+                            }
                         }
                     }
                 }
             } else {
                 int i = 0;
-                int count = paramcount;
+                int count = (sizeof(params)/sizeof(params[0]));
                 for (i = 0; i < count; i++){
-                    if (params[i].uistr){
-                        if (!strncmp(params[i].uistr, &cmd[1], strlen(params[i].uistr))){
-                            switch (params[i].ui_type){
-                                case UI_SHORT:
-                                    // if number supplied, write
-                                    if ((cmd[1+strlen(params[i].uistr)] >= '0') && (cmd[1+strlen(params[i].uistr)] <= '9')){
-                                        if (params[i].fn) params[i].fn( s, &params[i], FN_TYPE_PRE_WRITE, NULL, 0 );
-                                        *((short *)params[i].ptr) = atoi(&cmd[1+strlen(params[i].uistr)]);
-                                        if (params[i].fn) params[i].fn( s, &params[i], FN_TYPE_POST_WRITE, NULL, 0 );
-                                        sprintf(ascii_out, "flash var %s(%s) now %d\r\n",
-                                            (params[i].description)?params[i].description:"",
-                                            params[i].uistr,
-                                            (int)*(short *)params[i].ptr);
-                                    } else {
-                                        // read it
-                                        if (params[i].fn) params[i].fn( s, &params[i], FN_TYPE_PRE_READ, NULL, 0 );
-                                        sprintf(ascii_out, "%s(%s): %d\r\n",
-                                                (params[i].description)?params[i].description:"",
-                                                params[i].uistr,
-                                                (int)*(short *)params[i].ptr
+                    if(params[i] != NULL) {
+                        if (params[i]->uistr){
+                            if (!strncmp(params[i]->uistr, &cmd[1], strlen(params[i]->uistr))){
+                                switch (params[i]->ui_type){
+                                    case UI_SHORT:
+                                        // if number supplied, write
+                                        if ((cmd[1+strlen(params[i]->uistr)] >= '0') && (cmd[1+strlen(params[i]->uistr)] <= '9')){
+                                            if (params[i]->fn) params[i]->fn( s, params[i], FN_TYPE_PRE_WRITE, NULL, 0 );
+                                            *((short *)params[i]->ptr) = atoi(&cmd[1+strlen(params[i]->uistr)]);
+                                            if (params[i]->fn) params[i]->fn( s, params[i], FN_TYPE_POST_WRITE, NULL, 0 );
+                                            sprintf(ascii_out, "flash var %s(%s) now %d\r\n",
+                                                (params[i]->description)?params[i]->description:"",
+                                                params[i]->uistr,
+                                                (int)*(short *)params[i]->ptr);
+                                        } else {
+                                            // read it
+                                            if (params[i]->fn) params[i]->fn( s, params[i], FN_TYPE_PRE_READ, NULL, 0 );
+                                            sprintf(ascii_out, "%s(%s): %d\r\n",
+                                                    (params[i]->description)?params[i]->description:"",
+                                                    params[i]->uistr,
+                                                    (int)*(short *)params[i]->ptr
+                                            );
+                                            s->send_serial_data_wait((unsigned char *)ascii_out, strlen(ascii_out));
+                                            ascii_out[0] = 0; // don't print last one twice
+                                            if (params[i]->fn) params[i]->fn( s, params[i], FN_TYPE_POST_READ, NULL, 0 );
+                                        }
+                                        break;
+                                    default:
+                                        sprintf(ascii_out, "flash var %s(%s) unsupported type\r\n",
+                                                (params[i]->description)?params[i]->description:"",
+                                                params[i]->uistr
                                         );
-                                        s->send_serial_data_wait((unsigned char *)ascii_out, strlen(ascii_out));
-                                        ascii_out[0] = 0; // don't print last one twice
-                                        if (params[i].fn) params[i].fn( s, &params[i], FN_TYPE_POST_READ, NULL, 0 );
-                                    }
-                                    break;
-                                default:
-                                    sprintf(ascii_out, "flash var %s(%s) unsupported type\r\n",
-                                            (params[i].description)?params[i].description:"",
-                                            params[i].uistr
-                                    );
-                                    break;
+                                        break;
+                                }
+                                break; // found our param, now leave
                             }
-                            break; // found our param, now leave
                         }
                     }
                 }
@@ -492,16 +492,18 @@ char *get_F_description() {
 
         if (p) strcat(p, t);
 
-        for (int i = 0; i < paramcount; i++){
-            if (params[i].uistr){
-                char tmp[256];
-                snprintf(tmp, sizeof(tmp)-1,
-                    "  F%s<n> - %s\r\n",
-                        params[i].uistr,
-                        (params[i].description)?params[i].description:""
-                    );
-                len += strlen(tmp);
-                if (p) strcat(p, tmp);
+        for (int i = 0; i < (sizeof(params)/sizeof(params[0])); i++){
+            if(params[i] != NULL) {
+                if (params[i]->uistr){
+                    char tmp[256];
+                    snprintf(tmp, sizeof(tmp)-1,
+                        "  F%s<n> - %s\r\n",
+                            params[i]->uistr,
+                            (params[i]->description)?params[i]->description:""
+                        );
+                    len += strlen(tmp);
+                    if (p) strcat(p, tmp);
+                }
             }
         }
 
@@ -662,8 +664,8 @@ int line_read_memory(PROTOCOL_STAT *s, char *cmd, char *ascii_out) {
             addr = tmp;
             len = res;
         }
-    } else 
-#endif    
+    } else
+#endif
     {
         sscanf(&cmd[1], "%lx,%x", (unsigned long *)&addr, &len);
     }
@@ -707,7 +709,7 @@ int main_ascii_init(){
     ascii_add_line_fn( 'C', line_electrical, "show electrical measurements");
     ascii_add_line_fn( 'S', line_main_timing_stats, "show main loop timing stats");
     ascii_add_line_fn( 'E', line_debug_control, "dEbug control, E->off, Ec->console on, Es->console+scope");
-    
+
     ascii_add_line_fn( 'R', line_reset_firmware, " - R! -> Reset Firmware");
     ascii_add_line_fn( 'T', line_test_message, "tt - send a test protocol message ");
     ascii_add_line_fn( 'P', line_poweroff_control, " P -power control\r\n"
