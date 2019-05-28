@@ -58,13 +58,13 @@ typedef struct{
    int16_t speed;
    //uint32_t crc;
 } Serialcommand;
-int scale[2] = {15, 15};
 
 volatile Serialcommand command;
 
+int sensor_control = 0;
+
 #ifdef READ_SENSOR
 SENSOR_DATA last_sensor_data[2];
-int sensor_control = 0;
 int sensor_stabilise = 0;
 
 #endif
@@ -140,9 +140,8 @@ void poweroff() {
 // actually 'power'
 int pwms[2] = {0, 0};
 
-int dirs[2] = {-1, 1};
+// unused, but keep ascii from erroring
 int dspeeds[2] = {0,0};
-
 
 
 /////////////////////////////////////////
@@ -431,24 +430,22 @@ int main(void) {
     consoleLog("Power button up at startup\r\n");
   }
 
+  timeStats.now_us = HallGetuS();
+  timeStats.nominal_delay_us = (DELAY_IN_MAIN_LOOP * 1000);
+  timeStats.start_processing_us = timeStats.now_us + timeStats.nominal_delay_us;
+
   while(1) {
-    computePosition(deadreconer);
-    double x,y,t;
-    getXYT(deadreconer, &x, &y, &t);
+    timeStats.time_in_us = timeStats.now_us;
 
-    xytPosn.x = (int)x;
-    xytPosn.y = (int)y;
-    xytPosn.degrees = (int)t;
+    if (timeStats.start_processing_us < timeStats.now_us) {
+      timeStats.us_lost += timeStats.now_us - timeStats.start_processing_us;
+      timeStats.main_late_count++;
+      timeStats.start_processing_us = timeStats.now_us + 1000;  // at least 1ms of delay
+    }
 
-
-
-    #if (INCLUDE_PROTOCOL == INCLUDE_PROTOCOL2)
-
-      unsigned long start = HAL_GetTick();
-
-      while (HAL_GetTick() < start + DELAY_IN_MAIN_LOOP){
-
-
+    // delay until we should start processing
+    while (timeStats.now_us < timeStats.start_processing_us){
+      #if (INCLUDE_PROTOCOL == INCLUDE_PROTOCOL2)
         #ifdef SOFTWARE_SERIAL
           while ( softwareserial_available() > 0 ) {
             protocol_byte( &sSoftwareSerial, (unsigned char) softwareserial_getrx() );
@@ -469,14 +466,22 @@ int main(void) {
           }
           protocol_tick( &sUSART3 );
         #endif
+      #endif
+      timeStats.now_us = HallGetuS();
+    }
 
-      }
+    // move out '5ms' trigger on by 5ms
+    timeStats.processing_in_us = timeStats.now_us;
 
-    #else // if no bytes to read, just do a delay
+    /////////////////////////////////////
+    // proceesing starts after we hit 5ms interval
+    computePosition(deadreconer);
+    double x,y,t;
+    getXYT(deadreconer, &x, &y, &t);
 
-      HAL_Delay(DELAY_IN_MAIN_LOOP); //delay in ms
-
-    #endif
+    xytPosn.x = (int)x;
+    xytPosn.y = (int)y;
+    xytPosn.degrees = (int)t;
 
     cmd1 = 0;
     cmd2 = 0;
@@ -516,48 +521,44 @@ int main(void) {
       timeout = 0;
     #endif
 
-
-
-    #if defined(INCLUDE_PROTOCOL)||defined(READ_SENSOR)
-      if (!power_button_info.startup_button_held){
-    #endif
+    if (!power_button_info.startup_button_held){
     #ifdef READ_SENSOR
-        // read the last sensor message in the buffer
-        sensor_read_data();
+      // read the last sensor message in the buffer
+      sensor_read_data();
 
-        // tapp one or other side twice in 2s, with at least 1/4s between to
-        // enable hoverboard mode.
-        if (CONTROL_TYPE_NONE == control_type){
-          if (sensor_data[0].doubletap || sensor_data[1].doubletap){
-            if (FlashContent.HoverboardEnable){
-              sensor_control = 1;
-            }
-            consoleLog("double tap -> hoverboard mode\r\n");
-            sensor_data[0].doubletap = 0;
-            sensor_data[1].doubletap = 0;
+      // tapp one or other side twice in 2s, with at least 1/4s between to
+      // enable hoverboard mode.
+      if (CONTROL_TYPE_NONE == control_type){
+        if (sensor_data[0].doubletap || sensor_data[1].doubletap){
+          if (FlashContent.HoverboardEnable){
+            sensor_control = 1;
           }
+          consoleLog("double tap -> hoverboard mode\r\n");
+          sensor_data[0].doubletap = 0;
+          sensor_data[1].doubletap = 0;
         }
+      }
 
-        if (electrical_measurements.charging){
-          sensor_set_flash(0, 3);
-        } else {
-          sensor_set_flash(0, 0);
+      if (electrical_measurements.charging){
+        sensor_set_flash(0, 3);
+      } else {
+        sensor_set_flash(0, 0);
+      }
+
+      int rollhigh = 0;
+      for (int i = 0; i < 2; i++){
+        if  (ABS(sensor_data[i].complete.Roll) > 2000){
+          rollhigh = 1;
         }
-
-        int rollhigh = 0;
-        for (int i = 0; i < 2; i++){
-          if  (ABS(sensor_data[i].complete.Roll) > 2000){
-            rollhigh = 1;
-          }
-          if  (ABS(sensor_data[i].complete.Angle) > 9000){
-            rollhigh = 1;
-          }
+        if  (ABS(sensor_data[i].complete.Angle) > 9000){
+          rollhigh = 1;
         }
+      }
 
 
-        // if roll is a large angle (>20 degrees)
-        // then disable
-    #ifdef CONTROL_SENSOR
+      // if roll is a large angle (>20 degrees)
+      // then disable
+      #ifdef CONTROL_SENSOR
         int setcolours = 1;
         if (sensor_control && FlashContent.HoverboardEnable){
           if (rollhigh){
@@ -568,10 +569,11 @@ int main(void) {
           } else {
             if(!electrical_measurements.charging){
               int either_sensor_ok = sensor_data[0].sensor_ok || sensor_data[1].sensor_ok;
+              int dirs[2] = {-1, 1};
 
               for (int i = 0; i < 2; i++){
                 if (sensor_data[i].sensor_ok){
-                  pwms[i] = CLAMP(dirs[i]*(sensor_data[i].complete.Angle - sensor_data[i].Center)/3+dspeeds[i], -FlashContent.HoverboardPWMLimit, FlashContent.HoverboardPWMLimit);
+                  pwms[i] = CLAMP(dirs[i]*(sensor_data[i].complete.Angle - sensor_data[i].Center)/3, -FlashContent.HoverboardPWMLimit, FlashContent.HoverboardPWMLimit);
                   sensor_set_colour(i, SENSOR_COLOUR_YELLOW);
                   if (!enable) {
                     consoleLog("enable by hoverboard mode & !rollHigh\r\n");
@@ -607,23 +609,17 @@ int main(void) {
           for (int i = 0; i < 2; i++){
             if  (sensor_data[i].sensor_ok){
               sensor_set_colour(i, SENSOR_COLOUR_GREEN);
-              scale[i] = 3;
             } else {
               sensor_set_colour(i, SENSOR_COLOUR_RED);
-              scale[i] = 3;
             }
           }
         }
-    #endif // end if control_sensor
+      #endif // end if control_sensor
 
     #endif // READ_SENSOR
-    #if defined(INCLUDE_PROTOCOL)||defined(READ_SENSOR)
-    #ifdef READ_SENSOR
-        if (!sensor_control || !FlashContent.HoverboardEnable){
-    #else
-        if (!FlashContent.HoverboardEnable){
-    #endif //READ_SENSOR
 
+    #if defined(INCLUDE_PROTOCOL)||defined(READ_SENSOR)
+        if (!sensor_control || !FlashContent.HoverboardEnable){
           if ((last_control_type != control_type) || (!enable)){
             // nasty things happen if it's not re-initialised
             init_PID_control();
@@ -705,13 +701,13 @@ int main(void) {
         }
       }
 
-    #ifdef READ_SENSOR
-      // send twice to make sure each side gets it.
-      // if we sent diagnositc data, it seems to need this.
-      sensor_send_lights();
-    #endif
-    #else
+      #ifdef READ_SENSOR
+        // send twice to make sure each side gets it.
+        // if we sent diagnositc data, it seems to need this.
+        sensor_send_lights();
+      #endif
 
+    #else // i.e. not defined(INCLUDE_PROTOCOL)||defined(READ_SENSOR)
 
       // ####### LOW-PASS FILTER #######
       steer = steer * (1.0 - FILTER) + cmd1 * FILTER;
@@ -879,6 +875,27 @@ int main(void) {
         poweroff();
       }
     }
+    ////////////////////////////////
+    // take stats
+    timeStats.now_us = HallGetuS();
+    
+    timeStats.main_interval_us = timeStats.now_us - timeStats.time_in_us;
+    timeStats.main_delay_us = timeStats.processing_in_us - timeStats.time_in_us;
+    timeStats.main_processing_us = timeStats.now_us - timeStats.processing_in_us;
+    // maybe average main_dur as a stat?
+    if (timeStats.main_interval_ms == 0){
+      timeStats.main_interval_ms = ((float)timeStats.main_interval_us)/1000;
+      timeStats.main_processing_ms = ((float)timeStats.main_processing_us)/1000.0;
+    }
+    timeStats.main_interval_ms = timeStats.main_interval_ms * 0.99;
+    timeStats.main_interval_ms = timeStats.main_interval_ms + (((float)timeStats.main_interval_us)/1000.0)*0.01;
+
+    timeStats.main_processing_ms = timeStats.main_processing_ms * 0.99;
+    timeStats.main_processing_ms = timeStats.main_processing_ms + (((float)timeStats.main_processing_us)/1000.0)*0.01;
+
+    // select next loop start point
+    // move out '5ms' trigger on by 5ms
+    timeStats.start_processing_us = timeStats.start_processing_us + timeStats.nominal_delay_us;
   }
 }
 
