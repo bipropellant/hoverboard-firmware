@@ -156,12 +156,12 @@ void DMA1_Channel1_IRQHandler() {
     rtU.b_hallALeft   = hall_ul;
     rtU.b_hallBLeft   = hall_vl;
     rtU.b_hallCLeft   = hall_wl;
-    rtU.r_DCLeft      = pwml;
+    rtU.r_DCLeft      = -pwml;
 
     rtU.b_hallARight  = hall_ur;
     rtU.b_hallBRight  = hall_vr;
     rtU.b_hallCRight  = hall_wr;
-    rtU.r_DCRight     = pwmr;
+    rtU.r_DCRight     = -pwmr;
 
     /* Step the controller */
     BLDC_controller_step();

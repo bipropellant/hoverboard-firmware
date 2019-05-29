@@ -199,7 +199,7 @@ static const int increments[7][7] =
 
 TIME_STATS timeStats;
 
-long long now_us = 0;
+volatile long long now_us = 0;
 
 long long HallGetuS(){
     return now_us;
