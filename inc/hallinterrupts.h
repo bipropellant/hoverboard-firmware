@@ -137,6 +137,7 @@ extern volatile HALL_DATA_STRUCT HallData[2];
 extern TIM_HandleTypeDef h_timer_hall;
 extern volatile HALL_PARAMS local_hall_params[2];
 extern volatile long long timerwraps;
+extern volatile long long now_us;
 
 
 #endif

@@ -38,6 +38,9 @@
 #include "deadreckoner.h"
 
 #include <string.h>
+#include <stdlib.h>
+
+#include "BLDC_controller.h"           /* Model's header file */
 
 void SystemClock_Config(void);
 
@@ -90,8 +93,6 @@ int speed; // global variable for speed. -1000 to 1000
 
 extern volatile int pwml;  // global variable for pwm left. -1000 to 1000
 extern volatile int pwmr;  // global variable for pwm right. -1000 to 1000
-extern volatile int weakl; // global variable for field weakening left. -1000 to 1000
-extern volatile int weakr; // global variable for field weakening right. -1000 to 1000
 
 extern uint8_t buzzerFreq;    // global variable for the buzzer pitch. can be 1, 2, 3, 4, 5, 6, 7...
 extern uint8_t buzzerPattern; // global variable for the buzzer pattern. can be 1, 2, 3, 4, 5, 6, 7...
@@ -314,6 +315,15 @@ int main(void) {
     FlashContent.MaxCurrLim = DC_CUR_LIMIT*100;
   }
   electrical_measurements.dcCurLim = MIN(DC_CUR_LIMIT, FlashContent.MaxCurrLim / 100);
+    
+  /* Set BLDC controller parameters */
+  rtP.z_ctrlTypSel        = CTRL_TYP_SEL;
+  rtP.b_phaAdvEna         = PHASE_ADV_ENA;
+  rtP.n_commDeacvHi       = COMM_DEACV_HI;
+  rtP.n_commAcvLo         = COMM_ACV_LO;
+
+  /* Initialize BLDC controller */
+  BLDC_controller_initialize();
 
   for (int i = 8; i >= 0; i--) {
     buzzerFreq = i;
@@ -992,9 +1002,7 @@ void check_power_button(){
         // power button held for >100ms < 2s -> power off
         // (only if it had been released since startup)
         if ((power_button_info.button_held_ms >= 100) && 
-            (power_button_info.button_held_ms < 2000) && 
-            weakr == 0 && 
-            weakl == 0) {
+            (power_button_info.button_held_ms < 2000)) {
           enable = 0;
           //while (HAL_GPIO_ReadPin(BUTTON_PORT, BUTTON_PIN));
           consoleLog("power off by button\r\n");
