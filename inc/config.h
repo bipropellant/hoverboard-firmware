@@ -40,7 +40,7 @@
   #define SENSOR_WORDS 10
 //#define SENSOR_BAUD     26315    // reported baudrate for other sensor boards (6 word)?
 //#define SENSOR_WORDS 6
-//#define SENSOR_BAUD     32100    // reported baudrate for another sensor board (maybe 7 word)?
+//#define SENSOR_BAUD     32100    // reported baudrate for another sensor board  (10 word 'Denver' brand hoverboards)
   // possibly baud rate based on ~2.5ms frame interval, so baud dependent on word count?
 #endif
 
