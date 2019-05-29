@@ -57,7 +57,6 @@ void DMA1_Channel1_IRQHandler() {
   __enable_irq();
 
 
-
   DMA1->IFCR = DMA_IFCR_CTCIF1;
   // HAL_GPIO_WritePin(LED_PORT, LED_PIN, 1);
 
@@ -77,6 +76,12 @@ void DMA1_Channel1_IRQHandler() {
 //#ifdef DO_MEASUREMENTS
     electrical_measurements.batteryVoltage = batteryVoltage;
 //#endif
+  }
+
+
+  // reduce to 8khz by running every other interrupt.
+  if (!(bldc_counter & 1)) {
+    return;
   }
 
   float dclAmps = ((float)ABS(adc_buffer.dcl - offsetdcl) * MOTOR_AMP_CONV_DC_AMP);
