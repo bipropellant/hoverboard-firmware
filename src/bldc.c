@@ -28,6 +28,8 @@ extern uint8_t disablepoweroff;
 uint32_t buzzerFreq = 0;
 uint32_t buzzerPattern = 0;
 
+volatile long long bldc_counter = 0;
+
 uint8_t enable = 0;
 
 const int pwm_res = 64000000 / 2 / PWM_FREQ; // = 2000
@@ -197,6 +199,7 @@ void DMA1_Channel1_IRQHandler() {
   long long timerwraps_copy = timerwraps;
   now_us = ((timerwraps_copy<<16) + time) * 10;
 #endif
+  bldc_counter++;
   unsigned char hall[2];
   hall[0] = (~(LEFT_HALL_U_PORT->IDR & (LEFT_HALL_U_PIN | LEFT_HALL_V_PIN | LEFT_HALL_W_PIN))/LEFT_HALL_U_PIN) & 7;
   hall[1] = (~(RIGHT_HALL_U_PORT->IDR & (RIGHT_HALL_U_PIN | RIGHT_HALL_V_PIN | RIGHT_HALL_W_PIN))/RIGHT_HALL_U_PIN) & 7;

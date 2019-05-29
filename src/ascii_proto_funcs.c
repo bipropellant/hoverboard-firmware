@@ -357,8 +357,8 @@ int line_main_timing_stats(PROTOCOL_STAT *s, char *cmd, char *ascii_out) {
 #ifdef HALL_INTERRUPTS
 //case 's': // display stats from main timing
     // we don't have float printing
-    sprintf(ascii_out, "Main loop interval_us %d; lates %d, processing_us %d\r\n",
-        (int)(timeStats.main_interval_ms * 1000), timeStats.main_late_count, (int)(timeStats.main_processing_ms*1000));
+    sprintf(ascii_out, "Main loop interval_us %d; lates %d, processing_us %d, interval by tick %d, bldc freq %d\r\n",
+        (int)(timeStats.f_main_interval_ms * 1000), timeStats.main_late_count, (int)(timeStats.f_main_processing_ms*1000), (int)timeStats.f_main_interval_ms, timeStats.bldc_freq);
 #endif
     return 1;
 }

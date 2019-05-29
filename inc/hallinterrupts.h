@@ -37,12 +37,22 @@ typedef struct tag_time_stats {
 
     long long nominal_delay_us;
 
+    long now_ms;
+    long start_processing_ms;
+    long processing_in_ms;
+    long main_interval_ms;
+    long time_in_ms;
+    long main_delay_ms;
+    long main_processing_ms;
+
     // stats
     long long us_lost;
     unsigned int main_late_count;
 
-    float main_interval_ms;
-    float main_processing_ms;
+    float f_main_interval_ms;
+    float f_main_processing_ms;
+
+    int bldc_freq;
 
 } TIME_STATS;
 

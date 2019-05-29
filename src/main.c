@@ -50,6 +50,9 @@ extern volatile adc_buf_t adc_buffer;
 extern I2C_HandleTypeDef hi2c2;
 extern UART_HandleTypeDef huart2;
 
+extern volatile long long bldc_counter;
+
+
 int cmd1;  // normalized input values. -1000 to 1000
 int cmd2;
 int cmd3;
@@ -392,11 +395,22 @@ int main(void) {
   }
 
   timeStats.now_us = HallGetuS();
+  timeStats.now_ms = HAL_GetTick();
+
   timeStats.nominal_delay_us = (DELAY_IN_MAIN_LOOP * 1000);
   timeStats.start_processing_us = timeStats.now_us + timeStats.nominal_delay_us;
+  timeStats.start_processing_ms = timeStats.now_ms + DELAY_IN_MAIN_LOOP;
+
+  long long start_bldc_counter = bldc_counter;
+  HAL_Delay(200);
+  long long bldc_counter_200ms = bldc_counter;
+
+  int bldc_in_200ms = (int)(bldc_counter_200ms - start_bldc_counter);
+  timeStats.bldc_freq = bldc_in_200ms * 5;
 
   while(1) {
     timeStats.time_in_us = timeStats.now_us;
+    timeStats.time_in_ms = timeStats.now_ms;
 
     if (timeStats.start_processing_us < timeStats.now_us) {
       timeStats.us_lost += timeStats.now_us - timeStats.start_processing_us;
@@ -429,10 +443,12 @@ int main(void) {
         #endif
       #endif
       timeStats.now_us = HallGetuS();
+      timeStats.now_ms = HAL_GetTick();
     }
 
     // move out '5ms' trigger on by 5ms
     timeStats.processing_in_us = timeStats.now_us;
+    timeStats.processing_in_ms = timeStats.now_ms;
 
     /////////////////////////////////////
     // proceesing starts after we hit 5ms interval
@@ -839,20 +855,25 @@ int main(void) {
     ////////////////////////////////
     // take stats
     timeStats.now_us = HallGetuS();
+    timeStats.now_ms = HAL_GetTick();
     
     timeStats.main_interval_us = timeStats.now_us - timeStats.time_in_us;
+    timeStats.main_interval_ms = timeStats.now_ms - timeStats.time_in_ms;
     timeStats.main_delay_us = timeStats.processing_in_us - timeStats.time_in_us;
+    timeStats.main_delay_ms = timeStats.processing_in_ms - timeStats.time_in_ms;
     timeStats.main_processing_us = timeStats.now_us - timeStats.processing_in_us;
+    timeStats.main_processing_ms = timeStats.now_ms - timeStats.processing_in_ms;
+
     // maybe average main_dur as a stat?
     if (timeStats.main_interval_ms == 0){
       timeStats.main_interval_ms = ((float)timeStats.main_interval_us)/1000;
       timeStats.main_processing_ms = ((float)timeStats.main_processing_us)/1000.0;
     }
-    timeStats.main_interval_ms = timeStats.main_interval_ms * 0.99;
-    timeStats.main_interval_ms = timeStats.main_interval_ms + (((float)timeStats.main_interval_us)/1000.0)*0.01;
+    timeStats.f_main_interval_ms = timeStats.f_main_interval_ms * 0.99;
+    timeStats.f_main_interval_ms = timeStats.f_main_interval_ms + (((float)timeStats.main_interval_us)/1000.0)*0.01;
 
-    timeStats.main_processing_ms = timeStats.main_processing_ms * 0.99;
-    timeStats.main_processing_ms = timeStats.main_processing_ms + (((float)timeStats.main_processing_us)/1000.0)*0.01;
+    timeStats.f_main_processing_ms = timeStats.f_main_processing_ms * 0.99;
+    timeStats.f_main_processing_ms = timeStats.f_main_processing_ms + (((float)timeStats.main_processing_us)/1000.0)*0.01;
 
     // select next loop start point
     // move out '5ms' trigger on by 5ms
