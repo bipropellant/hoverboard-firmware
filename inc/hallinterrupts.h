@@ -53,6 +53,7 @@ typedef struct tag_time_stats {
     float f_main_processing_ms;
 
     int bldc_freq;
+    long long bldc_us;
 
 } TIME_STATS;
 
@@ -74,6 +75,13 @@ extern TIME_STATS timeStats;
 // one for each wheel
 extern volatile HALL_DATA_STRUCT HallData[2];
 
+extern volatile uint8_t hall_ul;
+extern volatile uint8_t hall_vl;
+extern volatile uint8_t hall_wl;
+
+extern volatile uint8_t hall_ur;
+extern volatile uint8_t hall_vr;
+extern volatile uint8_t hall_wr;
 
 ////////////////////////////////////////////////////////////////////////////
 // the one and only function we need to call to start it gathering Hall data
@@ -130,6 +138,8 @@ typedef struct tag_HALL_PARAMS{
 
 
     int dmacount;
+
+    int hall_change_in_bldc_count;
 } HALL_PARAMS;
 #pragma pack(pop)
 

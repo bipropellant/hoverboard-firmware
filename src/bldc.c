@@ -16,6 +16,7 @@ volatile ELECTRICAL_PARAMS electrical_measurements;
 volatile int pwml = 0;
 volatile int pwmr = 0;
 
+
 extern volatile int speed;
 
 extern volatile adc_buf_t adc_buffer;
@@ -29,6 +30,10 @@ uint32_t buzzerTimer    = 0;
 
 uint8_t enable          = 0;
 volatile long long bldc_counter = 0;
+volatile unsigned  bldc_count = 0;
+
+extern volatile HALL_PARAMS local_hall_params[2];
+
 
 const int pwm_res       = 64000000 / 2 / PWM_FREQ; // = 2000
 
@@ -53,7 +58,7 @@ void DMA1_Channel1_IRQHandler() {
   long long timerwraps_copy = timerwraps;
   now_us = ((timerwraps_copy<<16) + time) * 10;
 #endif
-  bldc_counter++;
+
   __enable_irq();
 
 
@@ -80,9 +85,14 @@ void DMA1_Channel1_IRQHandler() {
 
 
   // reduce to 8khz by running every other interrupt.
-  if (!(bldc_counter & 1)) {
+  // used to control freq.
+  bldc_count++;
+  if (!(bldc_count & 1)) {
     return;
   }
+
+  // used to measure freq
+  bldc_counter++;
 
   float dclAmps = ((float)ABS(adc_buffer.dcl - offsetdcl) * MOTOR_AMP_CONV_DC_AMP);
   float dcrAmps = ((float)ABS(adc_buffer.dcr - offsetdcr) * MOTOR_AMP_CONV_DC_AMP);
@@ -141,14 +151,7 @@ void DMA1_Channel1_IRQHandler() {
   int ul, vl, wl;
   int ur, vr, wr;
 
-  // Get hall sensors values
-  uint8_t hall_ul = !(LEFT_HALL_U_PORT->IDR & LEFT_HALL_U_PIN);
-  uint8_t hall_vl = !(LEFT_HALL_V_PORT->IDR & LEFT_HALL_V_PIN);
-  uint8_t hall_wl = !(LEFT_HALL_W_PORT->IDR & LEFT_HALL_W_PIN);
 
-  uint8_t hall_ur = !(RIGHT_HALL_U_PORT->IDR & RIGHT_HALL_U_PIN);
-  uint8_t hall_vr = !(RIGHT_HALL_V_PORT->IDR & RIGHT_HALL_V_PIN);
-  uint8_t hall_wr = !(RIGHT_HALL_W_PORT->IDR & RIGHT_HALL_W_PIN);
 
   static boolean_T OverrunFlag = false;
   /* Check for overrun */
@@ -158,6 +161,9 @@ void DMA1_Channel1_IRQHandler() {
   OverrunFlag = true;
  
     /* Set motor inputs here */
+    // hall_ul etc. now read in hall interrupt.
+
+  __disable_irq(); // but we want all values at the same time, without interferance
     rtU.b_hallALeft   = hall_ul;
     rtU.b_hallBLeft   = hall_vl;
     rtU.b_hallCLeft   = hall_wl;
@@ -167,9 +173,17 @@ void DMA1_Channel1_IRQHandler() {
     rtU.b_hallBRight  = hall_vr;
     rtU.b_hallCRight  = hall_wr;
     rtU.r_DCRight     = -pwmr;
+  __enable_irq();
 
     /* Step the controller */
     BLDC_controller_step();
+
+    if ((rtU.b_hallALeft != hall_ul) || (rtU.b_hallBLeft != hall_vl) || (rtU.b_hallCLeft != hall_wl)){
+      local_hall_params[0].hall_change_in_bldc_count++;
+    }
+    if ((rtU.b_hallARight != hall_ur) || (rtU.b_hallBRight != hall_vr) || (rtU.b_hallCRight != hall_wr)){
+      local_hall_params[1].hall_change_in_bldc_count++;
+    }
 
     /* Get motor outputs here */
     ul            = rtY.DC_phaALeft;
@@ -196,5 +210,14 @@ void DMA1_Channel1_IRQHandler() {
   RIGHT_TIM->RIGHT_TIM_V  = CLAMP(vr + pwm_res / 2, 10, pwm_res-10);
   RIGHT_TIM->RIGHT_TIM_W  = CLAMP(wr + pwm_res / 2, 10, pwm_res-10);
 
+  __disable_irq(); // but we want both values at the same time, without interferance
+#ifdef HALL_INTERRUPTS
+  time = h_timer_hall.Instance->CNT;
+  timerwraps_copy = timerwraps;
+  long long end_us = ((timerwraps_copy<<16) + time) * 10;
+#endif
+  __enable_irq();
+
+  timeStats.bldc_us = (end_us - now_us);
 
 }

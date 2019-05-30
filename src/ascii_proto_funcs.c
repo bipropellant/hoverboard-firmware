@@ -247,10 +247,10 @@ int immediate_quit(PROTOCOL_STAT *s, char byte, char *ascii_out) {
 int immediate_hall(PROTOCOL_STAT *s, char byte, char *ascii_out) {
 #ifdef HALL_INTERRUPTS
     sprintf(ascii_out,
-        "L: P:%ld(%ldmm) S:%ld(%ldmm/s) dT:%lu Skip:%lu Dma:%d\r\n"\
-        "R: P:%ld(%ldmm) S:%ld(%ldmm/s) dT:%lu Skip:%lu Dma:%d\r\n",
-        HallData[0].HallPosn, HallData[0].HallPosn_mm, HallData[0].HallSpeed, HallData[0].HallSpeed_mm_per_s, HallData[0].HallTimeDiff, HallData[0].HallSkipped, local_hall_params[0].dmacount,
-        HallData[1].HallPosn, HallData[1].HallPosn_mm, HallData[1].HallSpeed, HallData[1].HallSpeed_mm_per_s, HallData[1].HallTimeDiff, HallData[1].HallSkipped, local_hall_params[1].dmacount
+        "L: P:%ld(%ldmm) S:%ld(%ldmm/s) dT:%lu Skip:%lu Dma:%d HC:%d\r\n"\
+        "R: P:%ld(%ldmm) S:%ld(%ldmm/s) dT:%lu Skip:%lu Dma:%d HC:%d\r\n",
+        HallData[0].HallPosn, HallData[0].HallPosn_mm, HallData[0].HallSpeed, HallData[0].HallSpeed_mm_per_s, HallData[0].HallTimeDiff, HallData[0].HallSkipped, local_hall_params[0].dmacount, local_hall_params[0].hall_change_in_bldc_count,
+        HallData[1].HallPosn, HallData[1].HallPosn_mm, HallData[1].HallSpeed, HallData[1].HallSpeed_mm_per_s, HallData[1].HallTimeDiff, HallData[1].HallSkipped, local_hall_params[1].dmacount, local_hall_params[1].hall_change_in_bldc_count
     );
 #else
     sprintf(ascii_out, "Hall Data not available\r\n");
@@ -357,8 +357,8 @@ int line_main_timing_stats(PROTOCOL_STAT *s, char *cmd, char *ascii_out) {
 #ifdef HALL_INTERRUPTS
 //case 's': // display stats from main timing
     // we don't have float printing
-    sprintf(ascii_out, "Main loop interval_us %d; lates %d, processing_us %d, interval by tick %d, bldc freq %d\r\n",
-        (int)(timeStats.f_main_interval_ms * 1000), timeStats.main_late_count, (int)(timeStats.f_main_processing_ms*1000), (int)timeStats.f_main_interval_ms, timeStats.bldc_freq);
+    sprintf(ascii_out, "Main loop interval_us %d; lates %d, processing_us %d, interval by tick %d, bldc freq %d, bldc_us %d\r\n",
+        (int)(timeStats.f_main_interval_ms * 1000), timeStats.main_late_count, (int)(timeStats.f_main_processing_ms*1000), (int)timeStats.f_main_interval_ms, timeStats.bldc_freq, (int)timeStats.bldc_us);
 #endif
     return 1;
 }
@@ -724,6 +724,7 @@ int main_ascii_init(){
     ascii_add_line_fn( 'N', line_sensors, "display sensor data");
     ascii_add_line_fn( 'I', line_immediate, "enable immediate commands - Ip/Is/Iw - direct to posn/speed/pwm control\r\n");
     ascii_add_line_fn( 'G', line_stm32, "display stm32 specific");
+    ascii_add_line_fn( 'H', line_hall, "display hall data");
 
     ascii_add_line_fn( 'F', line_generic_var, get_F_description());
 
