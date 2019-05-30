@@ -112,8 +112,9 @@
 // ############################### MOTOR CONTROL (overwrite) #########################
 #define CTRL_TYP_SEL            3   // [-] Control method selection: 0 = Commutation , 1 = Pure Trapezoidal , 2 = Sinusoidal, 3 = Sinusoidal 3rd armonic (default)
 #define PHASE_ADV_ENA           1   // [-] Phase advance enable parameter: 0 = disabled, 1 = enabled (default)
-#define COMM_DEACV_HI         180   // [rpm] Commutation method deactivation speed high (above this value the control switches from Commutation method to Selected method above)
-#define COMM_ACV_LO           100   // [rpm] Commutation method activation speed low
+// note: these two are now set from main based on 80/70 being (maybe) ok at 8khz
+#define COMM_DEACV_HI          80   // [rpm] Commutation method deactivation speed high (above this value the control switches from Commutation method to Selected method above)
+#define COMM_ACV_LO            70   // [rpm] Commutation method activation speed low
 
 
 // How to calibrate: connect GND and RX of a 3.3v uart-usb adapter to the right sensor board cable (be careful not to use the red wire of the cable. 15v will destroye verything.). if you are using nunchuck, disable it temporarily. enable DEBUG_SERIAL_USART3 and DEBUG_SERIAL_ASCII use asearial terminal.

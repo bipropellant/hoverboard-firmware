@@ -88,7 +88,7 @@ void DMA1_Channel1_IRQHandler() {
   // used to control freq.
   bldc_count++;
   if (!(bldc_count & 1)) {
-    return;
+    //return;
   }
 
   // used to measure freq

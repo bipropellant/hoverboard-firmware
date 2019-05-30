@@ -30,7 +30,8 @@ P rtP = {
    *   '<S28>/cf_spdCoef'
    *   '<S66>/cf_spdCoef'
    */
-  66667,
+  //66667,
+  5333, // value for 8khz.  but now set in main based on measure of bldc freq
 
   /* Variable: n_commAcvLo
    * Referenced by:

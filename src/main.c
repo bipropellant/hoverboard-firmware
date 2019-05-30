@@ -316,14 +316,7 @@ int main(void) {
   }
   electrical_measurements.dcCurLim = MIN(DC_CUR_LIMIT, FlashContent.MaxCurrLim / 100);
     
-  /* Set BLDC controller parameters */
-  rtP.z_ctrlTypSel        = CTRL_TYP_SEL;
-  rtP.b_phaAdvEna         = PHASE_ADV_ENA;
-  rtP.n_commDeacvHi       = COMM_DEACV_HI;
-  rtP.n_commAcvLo         = COMM_ACV_LO;
 
-  /* Initialize BLDC controller */
-  BLDC_controller_initialize();
 
   for (int i = 8; i >= 0; i--) {
     buzzerFreq = i;
@@ -417,6 +410,28 @@ int main(void) {
 
   int bldc_in_200ms = (int)(bldc_counter_200ms - start_bldc_counter);
   timeStats.bldc_freq = bldc_in_200ms * 5;
+
+
+  /* Set BLDC controller parameters */
+  rtP.z_ctrlTypSel        = CTRL_TYP_SEL;
+  rtP.b_phaAdvEna         = PHASE_ADV_ENA;
+  rtP.n_commDeacvHi       = COMM_DEACV_HI;
+  rtP.n_commAcvLo         = COMM_ACV_LO;
+
+  //round(f_ctrl * a_mechAngle * (pi/180) * (30/pi))
+  float coef = ((float) timeStats.bldc_freq) * 4.0 * (3.142/180.0) * (30.0/3.142);
+  rtP.cf_speedCoef        = (int) coef;
+  // base these on 8khz needing 80/70
+  rtP.n_commDeacvHi       = 80*timeStats.bldc_freq/8000;
+  rtP.n_commAcvLo         = 70*timeStats.bldc_freq/8000;
+
+
+  char tmp[256];
+  sprintf(tmp, "cf_speedCoef %d, n_commDeacvHi %d, n_commAcvLo %d\r\n", rtP.cf_speedCoef, rtP.n_commDeacvHi, rtP.n_commAcvLo);
+  consoleLog(tmp);
+
+  /* Initialize BLDC controller */
+  BLDC_controller_initialize();
 
   while(1) {
     timeStats.time_in_us = timeStats.now_us;
