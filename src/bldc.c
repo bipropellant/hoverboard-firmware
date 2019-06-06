@@ -182,12 +182,12 @@ void DMA1_Channel1_IRQHandler() {
     rtU_Left.b_hallA   = hall_ul;
     rtU_Left.b_hallB   = hall_vl;
     rtU_Left.b_hallC   = hall_wl;
-    rtU_Left.r_DC      = pwml;
+    rtU_Left.r_DC      = -pwml;
 
     rtU_Right.b_hallA  = hall_ur;
     rtU_Right.b_hallB  = hall_vr;
     rtU_Right.b_hallC  = hall_wr;
-    rtU_Right.r_DC     = pwmr;
+    rtU_Right.r_DC     = -pwmr;
   __enable_irq();
 
     /* Step the controller */
