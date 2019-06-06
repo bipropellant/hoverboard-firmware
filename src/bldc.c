@@ -4,10 +4,25 @@
 #include "setup.h"
 #include "config.h"
 
-// Matlab includes
-#include "BLDC_controller.h"           /* Model's header file */
 #include "bldc.h"
 #include "hallinterrupts.h"
+
+// Matlab includes and defines - from auto-code generation
+// ###############################################################################
+#include "BLDC_controller.h"           /* Model's header file */
+#include "rtwtypes.h"
+
+extern RT_MODEL *const rtM_Left;
+extern RT_MODEL *const rtM_Right;
+
+extern DW rtDW_Left;                    /* Observable states */
+extern ExtU rtU_Left;                   /* External inputs */
+extern ExtY rtY_Left;                   /* External outputs */
+
+extern DW rtDW_Right;                   /* Observable states */
+extern ExtU rtU_Right;                  /* External inputs */
+extern ExtY rtY_Right;                  /* External outputs */
+// ###############################################################################
 
 volatile ELECTRICAL_PARAMS electrical_measurements;
 
@@ -164,39 +179,41 @@ void DMA1_Channel1_IRQHandler() {
     // hall_ul etc. now read in hall interrupt.
 
   __disable_irq(); // but we want all values at the same time, without interferance
-    rtU.b_hallALeft   = hall_ul;
-    rtU.b_hallBLeft   = hall_vl;
-    rtU.b_hallCLeft   = hall_wl;
-    rtU.r_DCLeft      = -pwml;
+    rtU_Left.b_hallA   = hall_ul;
+    rtU_Left.b_hallB   = hall_vl;
+    rtU_Left.b_hallC   = hall_wl;
+    rtU_Left.r_DC      = pwml;
 
-    rtU.b_hallARight  = hall_ur;
-    rtU.b_hallBRight  = hall_vr;
-    rtU.b_hallCRight  = hall_wr;
-    rtU.r_DCRight     = -pwmr;
+    rtU_Right.b_hallA  = hall_ur;
+    rtU_Right.b_hallB  = hall_vr;
+    rtU_Right.b_hallC  = hall_wr;
+    rtU_Right.r_DC     = pwmr;
   __enable_irq();
 
     /* Step the controller */
-    BLDC_controller_step();
+    BLDC_controller_step(rtM_Left);
+    BLDC_controller_step(rtM_Right);
 
-    if ((rtU.b_hallALeft != hall_ul) || (rtU.b_hallBLeft != hall_vl) || (rtU.b_hallCLeft != hall_wl)){
+    if ((rtU_Left.b_hallA != hall_ul) || (rtU_Left.b_hallB != hall_vl) || (rtU_Left.b_hallC != hall_wl)){
       local_hall_params[0].hall_change_in_bldc_count++;
     }
-    if ((rtU.b_hallARight != hall_ur) || (rtU.b_hallBRight != hall_vr) || (rtU.b_hallCRight != hall_wr)){
+    if ((rtU_Right.b_hallA != hall_ur) || (rtU_Right.b_hallB != hall_vr) || (rtU_Right.b_hallC != hall_wr)){
       local_hall_params[1].hall_change_in_bldc_count++;
     }
 
     /* Get motor outputs here */
-    ul            = rtY.DC_phaALeft;
-    vl            = rtY.DC_phaBLeft;
-    wl            = rtY.DC_phaCLeft;
-  // motSpeedLeft = rtY.n_motLeft;
-  // motAngleLeft = rtY.a_elecAngleLeft;
+    ul            = rtY_Left.DC_phaA;
+    vl            = rtY_Left.DC_phaB;
+    wl            = rtY_Left.DC_phaC;
+  // motSpeedLeft = rtY_Left.n_mot;
+  // motAngleLeft = rtY_Left.a_elecAngle;
 
-    ur            = rtY.DC_phaARight;
-    vr            = rtY.DC_phaBRight;
-    wr            = rtY.DC_phaCRight;
- // motSpeedRight = rtY.n_motRight;
- // motAngleRight = rtY.a_elecAngleRight;
+    /* Get motor outputs here */
+    ur            = rtY_Right.DC_phaA;
+    vr            = rtY_Right.DC_phaB;
+    wr            = rtY_Right.DC_phaC;
+ // motSpeedRight = rtY_Right.n_mot;
+ // motAngleRight = rtY_Right.a_elecAngle;
 
   /* Indicate task complete */
   OverrunFlag = false;

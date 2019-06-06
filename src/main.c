@@ -40,7 +40,26 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "BLDC_controller.h"           /* Model's header file */
+// Matlab includes and defines - from auto-code generation
+// ###############################################################################
+#include "BLDC_controller.h"            /* Model's header file */
+#include "rtwtypes.h"
+
+RT_MODEL rtM_Left_;    /* Real-time model */
+RT_MODEL rtM_Right_;   /* Real-time model */
+RT_MODEL *const rtM_Left = &rtM_Left_;
+RT_MODEL *const rtM_Right = &rtM_Right_;
+
+P rtP;                           /* Block parameters (auto storage) */
+
+DW rtDW_Left;                    /* Observable states */
+ExtU rtU_Left;                   /* External inputs */
+ExtY rtY_Left;                   /* External outputs */
+
+DW rtDW_Right;                   /* Observable states */
+ExtU rtU_Right;                  /* External inputs */
+ExtY rtY_Right;                  /* External outputs */
+// ###############################################################################
 
 void SystemClock_Config(void);
 
@@ -411,8 +430,8 @@ int main(void) {
   int bldc_in_200ms = (int)(bldc_counter_200ms - start_bldc_counter);
   timeStats.bldc_freq = bldc_in_200ms * 5;
 
-
   /* Set BLDC controller parameters */
+  // ###############################################################################
   rtP.z_ctrlTypSel        = CTRL_TYP_SEL;
   rtP.b_phaAdvEna         = PHASE_ADV_ENA;
   rtP.n_commDeacvHi       = COMM_DEACV_HI;
@@ -422,16 +441,30 @@ int main(void) {
   float coef = ((float) timeStats.bldc_freq) * 4.0 * (3.142/180.0) * (30.0/3.142);
   rtP.cf_speedCoef        = (int) coef;
   // base these on 8khz needing 80/70
-  rtP.n_commDeacvHi       = 80*timeStats.bldc_freq/8000;
-  rtP.n_commAcvLo         = 70*timeStats.bldc_freq/8000;
+  rtP.n_commDeacvHi       = COMM_DEACV_HI*timeStats.bldc_freq/8000;
+  rtP.n_commAcvLo         = COMM_ACV_LO*timeStats.bldc_freq/8000;
 
 
   char tmp[256];
   sprintf(tmp, "cf_speedCoef %d, n_commDeacvHi %d, n_commAcvLo %d\r\n", rtP.cf_speedCoef, rtP.n_commDeacvHi, rtP.n_commAcvLo);
   consoleLog(tmp);
 
-  /* Initialize BLDC controller */
-  BLDC_controller_initialize();
+  /* Pack LEFT motor data into RTM */
+  rtM_Left->defaultParam  = &rtP;
+  rtM_Left->dwork         = &rtDW_Left;
+  rtM_Left->inputs        = &rtU_Left;
+  rtM_Left->outputs       = &rtY_Left;
+
+  /* Pack RIGHT motor data into RTM */
+  rtM_Right->defaultParam = &rtP;
+  rtM_Right->dwork        = &rtDW_Right;
+  rtM_Right->inputs       = &rtU_Right;
+  rtM_Right->outputs      = &rtY_Right;
+
+  /* Initialize BLDC controllers */
+  BLDC_controller_initialize(rtM_Left);
+  BLDC_controller_initialize(rtM_Right);
+  // ###############################################################################
 
   while(1) {
     timeStats.time_in_us = timeStats.now_us;
