@@ -54,8 +54,8 @@ src/hbprotocol/machine_protocol.c \
 src/hbprotocol/ascii_protocol.c \
 src/protocolfunctions.c \
 src/ascii_proto_funcs.c
-Src/BLDC_controller_data.c \
-Src/BLDC_controller.c
+src/BLDC_controller_data.c \
+src/BLDC_controller.c
 
 
 # ASM sources
