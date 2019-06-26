@@ -52,7 +52,7 @@ src/deadreckoner.c \
 src/hbprotocol/protocol.c \
 src/hbprotocol/machine_protocol.c \
 src/hbprotocol/ascii_protocol.c \
-src/ascii_proto_functions.c \
+src/ascii_proto_funcs.c \
 src/protocolfunctions.c \
 src/BLDC_controller_data.c \
 src/BLDC_controller.c
