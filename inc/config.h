@@ -121,7 +121,7 @@
   #define USART3_BAUD_SENSE 0
 #endif
 
-// used when USART2 is enabled by power buutton as a protocol port.
+// used when USART2 is enabled by power button as a protocol port.
 #ifndef USART2PROTOCOLBAUD
   #define USART2PROTOCOLBAUD 9600
 #endif
@@ -278,13 +278,26 @@
 //#define CONTROL_PPM                 // use PPM-Sum as input. disable DEBUG_SERIAL_USART2!
 //#define PPM_NUM_CHANNELS 6          // total number of PPM channels to receive, even if they are not used.
 
+
 // ###### CONTROL VIA TWO POTENTIOMETERS ######
 // ADC-calibration to cover the full poti-range: connect potis to left sensor board cable (0 to 3.3V) (do NOT use the red 15V wire in the cable!). see <How to calibrate>. turn the potis to minimum position, write value 1 to ADC1_MIN and value 2 to ADC2_MIN. turn to maximum position and repeat it for ADC?_MAX. make, flash and test it.
-//#define CONTROL_ADC                 // use ADC as input. disable DEBUG_SERIAL_USART2!
-#define ADC1_MIN 0                  // min ADC1-value while poti at minimum-position (0 - 4095)
-#define ADC1_MAX 4095               // max ADC1-value while poti at maximum-position (0 - 4095)
-#define ADC2_MIN 0                  // min ADC2-value while poti at minimum-position (0 - 4095)
-#define ADC2_MAX 4095               // max ADC2-value while poti at maximum-position (0 - 4095)
+//#define CONTROL_ADC               // use ADC as input. disable DEBUG_SERIAL_USART2!
+#define ADC1_MIN         0        // min ADC1-value while poti at minimum-position (0 - 4095)
+#define ADC1_ZERO     1500        // ADC1-value while poti at zero-position (0 - 4095)
+#define ADC1_MAX      4095        // max ADC1-value while poti at maximum-position (0 - 4095)
+#define ADC1_MULT_NEG  500.0f     // Use 1000.0f to calibrate form MIN to MAX
+#define ADC1_MULT_POS 1500.0f     // Use 1000.0f to calibrate form MIN to MAX
+
+#define ADC2_MIN         0        // min ADC2-value while poti at minimum-position (0 - 4095)
+#define ADC2_ZERO     2000        // ADC2-value while poti at zero-position (0 - 4095)
+#define ADC2_MAX      4095        // max ADC2-value while poti at maximum-position (0 - 4095)
+#define ADC2_MULT_NEG  300.0f     // Use 1000.0f to calibrate form MIN to MAX
+#define ADC2_MULT_POS  300.0f     // Use 1000.0f to calibrate form MIN to MAX
+
+#define ADC_OFF_START    0          // Start Value of Area at which other inputs can be active (0 - 4095) Applies to Speed ADC
+#define ADC_OFF_END   1000          // End Value of Area at which other inputs can be active (0 - 4095) Applies to Speed ADC
+#define ADC_SWITCH_CHANNELS         // define if ADC1 is used for Steer and ADC2 for Speed
+#define ADC_REVERSE_STEER // define if ADC1 is used for Steer and ADC2 for Speed
 
 // ###### CONTROL VIA NINTENDO NUNCHUCK ######
 // left sensor board cable. keep cable short, use shielded cable, use ferrits, stabalize voltage in nunchuck, use the right one of the 2 types of nunchucks, add i2c pullups. use original nunchuck. most clones does not work very well.
@@ -335,6 +348,7 @@
 #ifndef INVERT_L_DIRECTION
   #define INVERT_L_DIRECTION
 #endif
+//#define SWITCH_WHEELS            // switch right and left wheel. Watch out, you probably also need to invert directions.
 #ifndef BEEPS_BACKWARD
   #define BEEPS_BACKWARD 0    // 0 or 1
 #endif
@@ -364,15 +378,86 @@
 
 // ############################### VALIDATE SETTINGS ###############################
 
-#if defined DEBUG_SERIAL_USART3 && defined CONTROL_NUNCHUCK
-  #error CONTROL_NUNCHUCK and DEBUG_SERIAL_USART3 not allowed. it is on the same cable.
+#if defined(DEBUG_SERIAL_USART2) && defined(DEBUG_SERIAL_USART3)
+  #error DEBUG_SERIAL_USART2 and DEBUG_SERIAL_USART3 not allowed, choose one.
 #endif
 
-#if defined DEBUG_SERIAL_USART3 && defined CONTROL_SENSOR
-  #error DEBUG_SERIAL_USART3 and CONTROL_SENSOR not allowed. it is on the same cable.
+#if defined(DEBUG_SERIAL_USART2)
+  #ifdef SENSOR_BOARD_CABLE_LEFT_IN_USE
+    #error SERIAL_USART2 not allowed, cable already in use.
+  #else
+    #define SENSOR_BOARD_CABLE_LEFT_IN_USE
+  #endif
+#endif
+
+#if defined(CONTROL_ADC)
+  #ifdef SENSOR_BOARD_CABLE_LEFT_IN_USE
+    #error CONTROL_ADC not allowed, cable already in use.
+  #else
+    #define SENSOR_BOARD_CABLE_LEFT_IN_USE
+  #endif
+#endif
+
+#if defined(CONTROL_PPM)
+  #ifdef SENSOR_BOARD_CABLE_LEFT_IN_USE
+    #error CONTROL_PPM not allowed, cable already in use.
+  #else
+    #define SENSOR_BOARD_CABLE_LEFT_IN_USE
+  #endif
+  #ifdef CONTROL_METHOD_DEFINED
+    #error CONTROL_PPM not allowed, another control Method is already defined.
+  #else
+    #define CONTROL_METHOD_DEFINED
+  #endif
 #endif
 
 
-#if defined CONTROL_PPM && defined CONTROL_ADC && defined CONTROL_NUNCHUCK || defined CONTROL_PPM && defined CONTROL_ADC || defined CONTROL_ADC && defined CONTROL_NUNCHUCK || defined CONTROL_PPM && defined CONTROL_NUNCHUCK
-  #error only 1 input method allowed. use CONTROL_PPM or CONTROL_ADC or CONTROL_NUNCHUCK.
+#if defined(DEBUG_SERIAL_USART3)
+  #ifdef SENSOR_BOARD_CABLE_RIGHT_IN_USE
+    #error SERIAL_USART3 not allowed, cable already in use.
+  #else
+    #define SENSOR_BOARD_CABLE_RIGHT_IN_USE
+  #endif
+#endif
+
+
+#if defined(CONTROL_NUNCHUCK)
+  #ifdef SENSOR_BOARD_CABLE_RIGHT_IN_USE
+    #error CONTROL_NUNCHUCK not allowed, cable already in use.
+  #else
+    #define SENSOR_BOARD_CABLE_RIGHT_IN_USE
+  #endif
+  #ifdef CONTROL_METHOD_DEFINED
+    #error CONTROL_NUNCHUCK not allowed, another control Method is already defined.
+  #else
+    #define CONTROL_METHOD_DEFINED
+  #endif
+#endif
+
+#if defined(INCLUDE_PROTOCOL)
+  #ifdef CONTROL_METHOD_DEFINED
+    #error INCLUDE_PROTOCOL not allowed, another control Method is already defined.
+  #else
+    #define CONTROL_METHOD_DEFINED
+  #endif
+#endif
+
+#if defined(SERIAL_USART2_IT)
+  #ifdef SENSOR_BOARD_CABLE_LEFT_IN_USE
+    #error SERIAL_USART2_IT not allowed, cable already in use.
+  #else
+    #define SENSOR_BOARD_CABLE_LEFT_IN_USE
+  #endif
+#endif
+
+#if defined(SERIAL_USART3_IT)
+  #ifdef SENSOR_BOARD_CABLE_RIGHT_IN_USE
+    #error SERIAL_USART3_IT not allowed, cable already in use.
+  #else
+    #define SENSOR_BOARD_CABLE_RIGHT_IN_USE
+  #endif
+#endif
+
+#if defined(INCLUDE_PROTOCOL) && !(defined(SERIAL_USART2_IT) || defined(SERIAL_USART3_IT))
+  #error Either SERIAL_USART2_IT or SERIAL_USART3_IT has to be selected when using INCLUDE_PROTOCOL.
 #endif

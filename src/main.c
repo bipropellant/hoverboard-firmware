@@ -50,13 +50,14 @@ extern I2C_HandleTypeDef hi2c2;
 extern UART_HandleTypeDef huart2;
 
 extern volatile long long bldc_counter;
-int cmd1;  // normalized input values. -1000 to 1000
-int cmd2;
-int cmd3;
+int cmd1, cmd1_ADC;  // normalized input values. -1000 to 1000
+int cmd2, cmd2_ADC;
 
 // used if set in setup.c
 int autoSensorBaud2 = 0; // in USART2_IT_init
 int autoSensorBaud3 = 0; // in USART3_IT_init
+
+bool ADCcontrolActive = false;
 
 int sensor_control = 0;
 
@@ -72,7 +73,7 @@ int powerofftimer = 0;
 extern volatile unsigned int timerval;
 extern volatile unsigned int ssbits;
 
-uint8_t button1, button2;
+uint8_t button1, button2, button1_ADC, button2_ADC;
 
 int steer; // global variable for steering. -1000 to 1000
 int speed; // global variable for speed. -1000 to 1000
@@ -516,17 +517,70 @@ int main(void) {
       float scale = ppm_captured_value[2] / 1000.0f;
     #endif
 
-    #ifdef CONTROL_ADC
+#ifdef CONTROL_ADC
       // ADC values range: 0-4095, see ADC-calibration in config.h
-      cmd1 = CLAMP(adc_buffer.l_tx2 - ADC1_MIN, 0, ADC1_MAX) / (ADC1_MAX / 1000.0f);  // ADC1
-      cmd2 = CLAMP(adc_buffer.l_rx2 - ADC2_MIN, 0, ADC2_MAX) / (ADC2_MAX / 1000.0f);  // ADC2
+
+
+      #ifdef ADC_SWITCH_CHANNELS
+
+        if(adc_buffer.l_rx2 < ADC2_ZERO) {
+          cmd1_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_MIN, ADC2_ZERO) - ADC2_ZERO) / ((ADC2_ZERO - ADC2_MIN) / ADC2_MULT_NEG); // ADC2 - Steer
+        } else {
+          cmd1_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_ZERO, ADC2_MAX) - ADC2_ZERO) / ((ADC2_MAX - ADC2_ZERO) / ADC2_MULT_POS); // ADC2 - Steer
+        }
+
+        if(adc_buffer.l_tx2 < ADC1_ZERO) {
+          cmd2_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_MIN, ADC1_ZERO) - ADC1_ZERO) / ((ADC1_ZERO - ADC1_MIN) / ADC1_MULT_NEG); // ADC1 - Speed
+        } else {
+          cmd2_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_ZERO, ADC1_MAX) - ADC1_ZERO) / ((ADC1_MAX - ADC1_ZERO) / ADC1_MULT_POS); // ADC1 - Speed
+        }
+
+        if((adc_buffer.l_tx2 < ADC_OFF_START) || (adc_buffer.l_tx2 > ADC_OFF_END) ) {
+          ADCcontrolActive = true;
+        } else {
+          if(ADCcontrolActive) {
+            cmd1 = 0;
+            cmd2 = 0;
+          }
+          ADCcontrolActive = false;
+        }
+
+      #else
+
+
+        if(adc_buffer.l_tx2 < ADC1_ZERO) {
+          cmd1_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_MIN, ADC1_ZERO) - ADC1_ZERO) / ((ADC1_ZERO - ADC1_MIN) / ADC1_MULT_NEG); // ADC1 - Steer
+        } else {
+          cmd1_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_ZERO, ADC1_MAX) - ADC1_ZERO) / ((ADC1_MAX - ADC1_ZERO) / ADC1_MULT_POS); // ADC1 - Steer
+        }
+
+        if(adc_buffer.l_rx2 < ADC2_ZERO) {
+          cmd2_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_MIN, ADC2_ZERO) - ADC2_ZERO) / ((ADC2_ZERO - ADC2_MIN) / ADC2_MULT_NEG); // ADC2 - Speed
+        } else {
+          cmd2_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_ZERO, ADC2_MAX) - ADC2_ZERO) / ((ADC2_MAX - ADC2_ZERO) / ADC2_MULT_POS); // ADC2 - Speed
+        }
+
+
+        if((adc_buffer.l_rx2 < ADC_OFF_START) || (adc_buffer.l_rx2 > ADC_OFF_END) ) {
+          ADCcontrolActive = true;
+        } else {
+          if(ADCcontrolActive) {
+            cmd1 = 0;
+            cmd2 = 0;
+          }
+          ADCcontrolActive = false;
+        }
+
+      #endif
+
+      #ifdef ADC_REVERSE_STEER
+        cmd1_ADC = -cmd1_ADC;
+      #endif
 
       // use ADCs as button inputs:
-      button1 = (uint8_t)(adc_buffer.l_tx2 > 2000);  // ADC1
-      button2 = (uint8_t)(adc_buffer.l_rx2 > 2000);  // ADC2
-
-      timeout = 0;
-    #endif
+      button1_ADC = (uint8_t)(adc_buffer.l_tx2 > 2000);  // ADC1
+      button2_ADC = (uint8_t)(adc_buffer.l_rx2 > 2000);  // ADC2
+#endif
 
     if (!power_button_info.startup_button_held){
     #ifdef READ_SENSOR
@@ -697,13 +751,21 @@ int main(void) {
         }
       }
 
+      #if defined CONTROL_ADC
+        if(ADCcontrolActive) {
+          cmd1 = cmd1_ADC;
+          cmd2 = cmd2_ADC;
+          timeout = 0;
+        }
+      #endif
+
       #ifdef READ_SENSOR
         // send twice to make sure each side gets it.
         // if we sent diagnositc data, it seems to need this.
         sensor_send_lights();
       #endif
 
-    #else // i.e. not defined(INCLUDE_PROTOCOL)||defined(READ_SENSOR)
+    #endif // INCLUDE_PROTOCOL)||defined(READ_SENSOR)
 
       // ####### LOW-PASS FILTER #######
       steer = steer * (1.0 - FILTER) + cmd1 * FILTER;
@@ -711,9 +773,19 @@ int main(void) {
 
 
       // ####### MIXER #######
-      pwms[0] = CLAMP(speed * SPEED_COEFFICIENT -  steer * STEER_COEFFICIENT, -1000, 1000);
-      pwms[1] = CLAMP(speed * SPEED_COEFFICIENT +  steer * STEER_COEFFICIENT, -1000, 1000);
+    #ifdef INCLUDE_PROTOCOL
+      if(ADCcontrolActive) {
+    #else
+      if(1) {
+    #endif
+        pwms[0] = CLAMP(speed * SPEED_COEFFICIENT -  steer * STEER_COEFFICIENT, -1000, 1000);
+        pwms[1] = CLAMP(speed * SPEED_COEFFICIENT +  steer * STEER_COEFFICIENT, -1000, 1000);
+      }
 
+    #ifdef SWITCH_WHEELS
+      int tmppwm = pwms[1];
+      pwms[1] = pwms[0];
+      pwms[0] = tmppwm;
     #endif
 
     #ifdef ADDITIONAL_CODE
