@@ -101,6 +101,13 @@
     //#define DEBUG_SERIAL_ASCII
   #endif
 
+// ############################### INPUT ###############################
+  #ifndef INPUT_TIMEOUT
+    #define INPUT_TIMEOUT          200          // time (ms) when to set motor enable=0, if there is no motor input
+  #endif
+//#ifndef HARD_STOP
+  //#define HARD_STOP                    // choice to stop right away or to decrement to zero
+//#endif
 
 // ############################### ENABLE FLASH STORAGE MECHANISM ###############################
 // this includes flasharea.c and flashaccess.c
