@@ -490,6 +490,7 @@ int main(void) {
                     PosnData.wanted_posn_mm[1] = HallData[1].HallPosn_mm;
                     enable = 0;
             #endif
+            input_timeout=0;
         break;
       case CONTROL_TYPE_PWM:
             #ifdef HARD_STOP
@@ -500,6 +501,7 @@ int main(void) {
                     pwms[1] = 0;
                     enable = 0;
             #endif
+            input_timeout=0;
         break;
       case CONTROL_TYPE_SPEED:
             #ifdef HARD_STOP
@@ -510,6 +512,7 @@ int main(void) {
                     SpeedData.wanted_speed_mm_per_sec[1] = 0;
                     enable = 0;
             #endif
+            input_timeout=0;
         break;
       }
     }
