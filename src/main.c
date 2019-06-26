@@ -778,8 +778,19 @@ int main(void) {
     #else
       if(1) {
     #endif
+
+    #ifdef ADC_TANKMODE
+        if(ADCcontrolActive) {
+          pwms[0] = steer * (1.0 - FILTER) + cmd1 * FILTER;
+          pwms[1] = speed * (1.0 - FILTER) + cmd2 * FILTER;
+        } else {
+    #endif
         pwms[0] = CLAMP(speed * SPEED_COEFFICIENT -  steer * STEER_COEFFICIENT, -1000, 1000);
         pwms[1] = CLAMP(speed * SPEED_COEFFICIENT +  steer * STEER_COEFFICIENT, -1000, 1000);
+
+    #ifdef ADC_TANKMODE
+        }
+    #endif
       }
 
     #ifdef SWITCH_WHEELS

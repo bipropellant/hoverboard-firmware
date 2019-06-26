@@ -136,20 +136,20 @@
 #ifndef SOFTWARE_SERIAL_RX_PORT
   #define SOFTWARE_SERIAL_RX_PORT GPIOB
 #endif
-#ifndef   SOFTWARE_SERIAL_TX_PIN  
+#ifndef   SOFTWARE_SERIAL_TX_PIN
   #define SOFTWARE_SERIAL_TX_PIN GPIO_PIN_9
 #endif
-#ifndef   SOFTWARE_SERIAL_TX_PORT  
+#ifndef   SOFTWARE_SERIAL_TX_PORT
   #define SOFTWARE_SERIAL_TX_PORT GPIOC
 #endif
 #ifndef FLASH_DEFAULT_HOVERBOARD_ENABLE
   #define FLASH_DEFAULT_HOVERBOARD_ENABLE 1
 #endif
 #ifndef USART2_BAUD
-  #define USART2_BAUD 26315        
+  #define USART2_BAUD 26315
 #endif
 #ifndef USART3_BAUD
-  #define USART3_BAUD 26315        
+  #define USART3_BAUD 26315
 #endif
 #ifndef SERIAL_USART_IT_BUFFERTYPE
   #define SERIAL_USART_IT_BUFFERTYPE unsigned short
@@ -176,7 +176,7 @@
 #endif
 #ifndef DELAY_IN_MAIN_LOOP
   #define DELAY_IN_MAIN_LOOP 5        // in ms. default 5. it is independent of all the timing critical stuff. do not touch if you do not know what you are doing.
-#endif 
+#endif
 
 #ifndef TIMEOUT
   #define TIMEOUT          5          // number of wrong / missing input commands before emergency off
@@ -204,7 +204,7 @@
 // Battery voltage calibration: connect power source. see <How to calibrate>. write value nr 5 to BAT_CALIB_ADC. make and flash firmware. then you can verify voltage on value 6 (devide it by 100.0 to get calibrated voltage).
 #ifndef BAT_CALIB_REAL_VOLTAGE
   #define BAT_CALIB_REAL_VOLTAGE        43.0       // input voltage measured by multimeter
-#endif 
+#endif
 #ifndef BAT_CALIB_ADC
   #define BAT_CALIB_ADC                 1704       // adc-value measured by mainboard (value nr 4 on UART debug output)
 #endif
@@ -226,7 +226,7 @@
 #ifndef BAT_LOW_LVL2
   #define BAT_LOW_LVL2            3.5       // your battery is almost empty. Charge now! [V/cell]
 #endif
-#ifndef BAT_LOW_DEAD  
+#ifndef BAT_LOW_DEAD
   #define BAT_LOW_DEAD            3.37      // undervoltage poweroff. (while not driving) [V/cell]
 #endif
 
@@ -297,7 +297,8 @@
 #define ADC_OFF_START    0          // Start Value of Area at which other inputs can be active (0 - 4095) Applies to Speed ADC
 #define ADC_OFF_END   1000          // End Value of Area at which other inputs can be active (0 - 4095) Applies to Speed ADC
 #define ADC_SWITCH_CHANNELS         // define if ADC1 is used for Steer and ADC2 for Speed
-#define ADC_REVERSE_STEER // define if ADC1 is used for Steer and ADC2 for Speed
+#define ADC_REVERSE_STEER           // define if ADC1 is used for Steer and ADC2 for Speed
+#define ADC_TANKMODE                // define if each input should control one wheel
 
 // ###### CONTROL VIA NINTENDO NUNCHUCK ######
 // left sensor board cable. keep cable short, use shielded cable, use ferrits, stabalize voltage in nunchuck, use the right one of the 2 types of nunchucks, add i2c pullups. use original nunchuck. most clones does not work very well.
