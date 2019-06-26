@@ -101,6 +101,10 @@ extern float batteryVoltage; // global variable for battery voltage
 uint32_t inactivity_timeout_counter;
 uint32_t debug_counter = 0;
 
+#ifdef INPUT_TIMEOUT
+  volatile uint32_t input_timeout;
+#endif // INPUT_TIMEOUT
+
 extern uint8_t nunchuck_data[6];
 #ifdef CONTROL_PPM
 extern volatile uint16_t ppm_captured_value[PPM_NUM_CHANNELS+1];
@@ -469,6 +473,48 @@ int main(void) {
     timeStats.time_in_us = timeStats.now_us;
     timeStats.time_in_ms = timeStats.now_ms;
 
+    ////////////////INPUT TIMEOUT ////////////////////////////
+
+#ifdef INPUT_TIMEOUT
+    input_timeout++;
+    if (input_timeout > (INPUT_TIMEOUT) / DELAY_IN_MAIN_LOOP)
+    {
+      switch (control_type)
+      {
+      case CONTROL_TYPE_POSITION:
+            #ifdef HARD_STOP
+                    PosnData.wanted_posn_mm[0] = HallData[0].HallPosn_mm;
+                    PosnData.wanted_posn_mm[1] = HallData[1].HallPosn_mm;
+            #else
+                    PosnData.wanted_posn_mm[0] = HallData[0].HallPosn_mm;
+                    PosnData.wanted_posn_mm[1] = HallData[1].HallPosn_mm;
+                    enable = 0;
+            #endif
+        break;
+      case CONTROL_TYPE_PWM:
+            #ifdef HARD_STOP
+                    pwms[0] = 0;
+                    pwms[1] = 0;
+            #else
+                    pwms[0] = 0;
+                    pwms[1] = 0;
+                    enable = 0;
+            #endif
+        break;
+      case CONTROL_TYPE_SPEED:
+            #ifdef HARD_STOP
+                    SpeedData.wanted_speed_mm_per_sec[0] = 0;
+                    SpeedData.wanted_speed_mm_per_sec[1] = 0;
+            #else
+                    SpeedData.wanted_speed_mm_per_sec[0] = 0;
+                    SpeedData.wanted_speed_mm_per_sec[1] = 0;
+                    enable = 0;
+            #endif
+        break;
+      }
+    }
+#endif // INPUT_TIMEOUT
+////////////////INPUT TIMEOUT ////////////////////////////
     if (timeStats.start_processing_us < timeStats.now_us) {
       timeStats.us_lost += timeStats.now_us - timeStats.start_processing_us;
       timeStats.main_late_count++;
