@@ -166,7 +166,7 @@ typedef struct {
 #define MAX_ADC_BUFFERS 10
 typedef struct tag_ADCBUFFERS {
   adc_buf_t buffers[MAX_ADC_BUFFERS];
-  int adcBufferHead;  
+  int adcBufferHead;
   int adcBufferTail;
 
   int offsetrl1;
@@ -179,15 +179,3 @@ typedef struct tag_ADCBUFFERS {
 } ADCBUFFERS;
 
 extern volatile ADCBUFFERS adc_buffers; // in setup.c
-
-
-// determines type of control in main
-extern int control_type;
-#define CONTROL_TYPE_NONE 0
-#define CONTROL_TYPE_POSITION 1
-#define CONTROL_TYPE_SPEED 2
-#define CONTROL_TYPE_PWM 3
-#define CONTROL_TYPE_MAX 4
-
-
-
