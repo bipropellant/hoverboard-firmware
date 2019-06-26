@@ -459,6 +459,6 @@
   #endif
 #endif
 
-#if defined(INCLUDE_PROTOCOL) && !(defined(SERIAL_USART2_IT) || defined(SERIAL_USART3_IT))
-  #error Either SERIAL_USART2_IT or SERIAL_USART3_IT has to be selected when using INCLUDE_PROTOCOL.
+#if defined(INCLUDE_PROTOCOL) && !(defined(SERIAL_USART2_IT) || defined(SERIAL_USART3_IT) || defined(SOFTWARE_SERIAL) )
+  #error Either SERIAL_USART2_IT, SERIAL_USART3_IT or SOFTWARE_SERIAL has to be selected when using INCLUDE_PROTOCOL.
 #endif
