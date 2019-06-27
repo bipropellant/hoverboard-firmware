@@ -19,11 +19,11 @@
 #pragma once
 
 #include "config.h"
+#include "control_structures.h"
 
 #ifdef HALL_INTERRUPTS
 
 #include "defines.h"
-#include "protocol.h"
 
 typedef struct tag_time_stats {
     // times

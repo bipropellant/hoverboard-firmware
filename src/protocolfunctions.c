@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "control_structures.h"
 
 #ifdef SOFTWARE_SERIAL
     PROTOCOL_STAT sSoftwareSerial;
@@ -45,10 +46,14 @@ extern int main_ascii_init(); // from ascii_proto_funcs.c
 //////////////////////////////////////////////
 // make values safe before we change enable...
 
+char protocol_enable = 0;
 void fn_enable ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
     switch (fn_type) {
+        case FN_TYPE_PRE_READ:
+            protocol_enable = enable;
+            break;
         case FN_TYPE_PRE_WRITE:
-            if (!enable) {
+            if (!protocol_enable) {
                 #ifdef HALL_INTERRUPTS
                     // assume we will enable,
                     // set wanted posn to current posn, else we may rush into a wall
@@ -65,6 +70,7 @@ void fn_enable ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned c
                         init_PID_control();
                 #endif
             }
+            enable = protocol_enable;
             break;
     }
 }
@@ -77,14 +83,14 @@ void fn_enable ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned c
 extern SENSOR_DATA sensor_data[2];
 
 // used to send only pertinent data, not the whole structure
-SENSOR_FRAME sensor_copy[2];
+PROTOCOL_SENSOR_FRAME sensor_copy[2];
 
 void fn_SensorData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
     switch (fn_type) {
         case FN_TYPE_PRE_READ:
             // copy just sensor input data
-            sensor_copy[0] = sensor_data[0].complete;
-            sensor_copy[1] = sensor_data[1].complete;
+            memcpy(&sensor_copy[0], &sensor_data[0].complete, sizeof(sensor_copy[0]));
+            memcpy(&sensor_copy[1], &sensor_data[1].complete, sizeof(sensor_copy[1]));
             break;
     }
 }
@@ -109,11 +115,26 @@ SPEED_DATA SpeedData = {
     40 // minimum mm/s which we can ask for
 };
 
+PROTOCOL_SPEED_DATA ProtocolSpeedData = {
+    {0, 0},
+
+    600, // max power (PWM)
+    -600,  // min power
+    40 // minimum mm/s which we can ask for
+};
+
+
 void fn_SpeedData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
     switch (fn_type) {
+        case FN_TYPE_PRE_READ:
+            memcpy(&ProtocolSpeedData, &SpeedData, sizeof(ProtocolSpeedData));
+            break;
         case FN_TYPE_PRE_WRITE:
             control_type = CONTROL_TYPE_SPEED;
             timeout = 0;
+            break;
+        case FN_TYPE_POST_WRITE:
+            memcpy(&SpeedData, &SpeedData, sizeof(SpeedData));
             break;
     }
 }
@@ -180,21 +201,20 @@ POSN_DATA PosnData = {
 ////////////////////////////////////////////////////////////////////////////////////////////
 // Variable & Functions for 0x07 RawPosition
 
-POSN RawPosition;
-
+PROTOCOL_POSN RawPosition;
 
 void fn_RawPosition ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
     switch (fn_type) {
         case FN_TYPE_PRE_READ:
-            ((POSN*) (param->ptr))->LeftAbsolute = HallData[0].HallPosn;
-            ((POSN*) (param->ptr))->LeftOffset = HallData[0].HallPosn - HallData[0].HallPosn_lastread;
-            ((POSN*) (param->ptr))->RightAbsolute = HallData[1].HallPosn;
-            ((POSN*) (param->ptr))->RightOffset = HallData[1].HallPosn - HallData[1].HallPosn_lastread;
+            ((PROTOCOL_POSN*) (param->ptr))->LeftAbsolute = HallData[0].HallPosn;
+            ((PROTOCOL_POSN*) (param->ptr))->LeftOffset = HallData[0].HallPosn - HallData[0].HallPosn_lastread;
+            ((PROTOCOL_POSN*) (param->ptr))->RightAbsolute = HallData[1].HallPosn;
+            ((PROTOCOL_POSN*) (param->ptr))->RightOffset = HallData[1].HallPosn - HallData[1].HallPosn_lastread;
             break;
 
         case FN_TYPE_POST_WRITE:
-            HallData[0].HallPosn_lastread = ((POSN*) (param->ptr))->LeftAbsolute;
-            HallData[1].HallPosn_lastread = ((POSN*) (param->ptr))->RightAbsolute;
+            HallData[0].HallPosn_lastread = ((PROTOCOL_POSN*) (param->ptr))->LeftAbsolute;
+            HallData[1].HallPosn_lastread = ((PROTOCOL_POSN*) (param->ptr))->RightAbsolute;
             break;
     }
 }
@@ -276,7 +296,7 @@ void fn_PWMData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // Variable & Functions for 0x21 BuzzerData
 
-BUZZER_DATA BuzzerData = {
+PROTOCOL_BUZZER_DATA BuzzerData = {
     .buzzerFreq = 0,
     .buzzerPattern = 0,
     .buzzerLen = 0,
@@ -289,15 +309,15 @@ extern uint16_t buzzerLen;
 void fn_BuzzerData ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
     switch (fn_type) {
         case FN_TYPE_POST_WRITE:
-            buzzerFreq      = ((BUZZER_DATA*) (param->ptr))->buzzerFreq;
-            buzzerLen       = ((BUZZER_DATA*) (param->ptr))->buzzerLen;
-            buzzerPattern   = ((BUZZER_DATA*) (param->ptr))->buzzerPattern;
+            buzzerFreq      = ((PROTOCOL_BUZZER_DATA*) (param->ptr))->buzzerFreq;
+            buzzerLen       = ((PROTOCOL_BUZZER_DATA*) (param->ptr))->buzzerLen;
+            buzzerPattern   = ((PROTOCOL_BUZZER_DATA*) (param->ptr))->buzzerPattern;
             break;
 
         case FN_TYPE_PRE_READ:
-            ((BUZZER_DATA*) (param->ptr))->buzzerFreq       = buzzerFreq;
-            ((BUZZER_DATA*) (param->ptr))->buzzerLen        = buzzerLen;
-            ((BUZZER_DATA*) (param->ptr))->buzzerPattern    = buzzerPattern;
+            ((PROTOCOL_BUZZER_DATA*) (param->ptr))->buzzerFreq       = buzzerFreq;
+            ((PROTOCOL_BUZZER_DATA*) (param->ptr))->buzzerLen        = buzzerLen;
+            ((PROTOCOL_BUZZER_DATA*) (param->ptr))->buzzerPattern    = buzzerPattern;
             break;
     }
 }
@@ -436,7 +456,7 @@ int setup_protocol() {
         errors += setParamVariable( 0x08, UI_NONE, (void *)&electrical_measurements,                  sizeof(ELECTRICAL_PARAMS), PARAM_R);
         setParamHandler(0x08, NULL);
 
-        errors += setParamVariable( 0x09, UI_CHAR, &enable,                  sizeof(enable), PARAM_RW);
+        errors += setParamVariable( 0x09, UI_CHAR, &protocol_enable,                  sizeof(enable), PARAM_RW);
         setParamHandler(0x09, fn_enable);
 
         errors += setParamVariable( 0x0A, UI_CHAR, &disablepoweroff,                  sizeof(disablepoweroff), PARAM_RW);

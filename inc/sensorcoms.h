@@ -19,8 +19,8 @@
 #pragma once
 
 #include "config.h"
-#include "protocol.h"
-
+//#include "protocol.h"
+#include "control_structures.h"
 /////////////////////////////////////////////////////////////////////////////////////
 // this file encapsulates coms with the original sensor boards
 // these use the 9 bit USART mode, sending 0x100 to signal the start of a comms frame

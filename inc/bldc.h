@@ -1,6 +1,6 @@
 #pragma once
 
-#include "protocol.h"
+#include "control_structures.h"
 
 #define BLDC_CONTROL_TYPE_ORIGINAL -1
 #define BLDC_CONTROL_TYPE_COMMUTATION 0

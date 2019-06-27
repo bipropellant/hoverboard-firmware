@@ -35,6 +35,7 @@
 #include "flashcontent.h"
 
 #include "deadreckoner.h"
+#include "control_structures.h"
 
 #include <string.h>
 void BldcController_Init();
