@@ -50,8 +50,8 @@ extern I2C_HandleTypeDef hi2c2;
 extern UART_HandleTypeDef huart2;
 
 extern volatile long long bldc_counter;
-int cmd1, cmd1_ADC;  // normalized input values. -1000 to 1000
-int cmd2, cmd2_ADC;
+int cmd1, cmd1_ADC, adcrFiltered;  // normalized input values. -1000 to 1000
+int cmd2, cmd2_ADC, adctFiltered;
 
 // used if set in setup.c
 int autoSensorBaud2 = 0; // in USART2_IT_init
@@ -520,22 +520,28 @@ int main(void) {
 #ifdef CONTROL_ADC
       // ADC values range: 0-4095, see ADC-calibration in config.h
 
+      adcrFiltered = adcrFiltered * (1.0 - ADC_OFF_FILTER) + adc_buffer.l_rx2 * ADC_OFF_FILTER;
+      adctFiltered = adctFiltered * (1.0 - ADC_OFF_FILTER) + adc_buffer.l_tx2 * ADC_OFF_FILTER;
 
-      #ifdef ADC_SWITCH_CHANNELS
 
-        if(adc_buffer.l_rx2 < ADC2_ZERO) {
-          cmd1_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_MIN, ADC2_ZERO) - ADC2_ZERO) / ((ADC2_ZERO - ADC2_MIN) / ADC2_MULT_NEG); // ADC2 - Steer
-        } else {
-          cmd1_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_ZERO, ADC2_MAX) - ADC2_ZERO) / ((ADC2_MAX - ADC2_ZERO) / ADC2_MULT_POS); // ADC2 - Steer
-        }
 
-        if(adc_buffer.l_tx2 < ADC1_ZERO) {
-          cmd2_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_MIN, ADC1_ZERO) - ADC1_ZERO) / ((ADC1_ZERO - ADC1_MIN) / ADC1_MULT_NEG); // ADC1 - Speed
-        } else {
-          cmd2_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_ZERO, ADC1_MAX) - ADC1_ZERO) / ((ADC1_MAX - ADC1_ZERO) / ADC1_MULT_POS); // ADC1 - Speed
-        }
+      if(adc_buffer.l_tx2 < ADC1_ZERO) {
+        cmd1_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_MIN, ADC1_ZERO) - ADC1_ZERO) / ((ADC1_ZERO - ADC1_MIN) / ADC1_MULT_NEG); // ADC1 - Steer
+      } else {
+        cmd1_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_ZERO, ADC1_MAX) - ADC1_ZERO) / ((ADC1_MAX - ADC1_ZERO) / ADC1_MULT_POS); // ADC1 - Steer
+      }
 
-        if((adc_buffer.l_tx2 < ADC_OFF_START) || (adc_buffer.l_tx2 > ADC_OFF_END) ) {
+      if(adc_buffer.l_rx2 < ADC2_ZERO) {
+        cmd2_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_MIN, ADC2_ZERO) - ADC2_ZERO) / ((ADC2_ZERO - ADC2_MIN) / ADC2_MULT_NEG); // ADC2 - Speed
+      } else {
+        cmd2_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_ZERO, ADC2_MAX) - ADC2_ZERO) / ((ADC2_MAX - ADC2_ZERO) / ADC2_MULT_POS); // ADC2 - Speed
+      }
+
+      if(ADC_SWITCH_CHANNELS) {
+        int cmdTemp = cmd1_ADC;
+        cmd1_ADC = cmd2_ADC;
+        cmd2_ADC = cmdTemp;
+        if((adctFiltered < ADC_OFF_START) || (adctFiltered > ADC_OFF_END) ) {
           ADCcontrolActive = true;
         } else {
           if(ADCcontrolActive) {
@@ -544,24 +550,8 @@ int main(void) {
           }
           ADCcontrolActive = false;
         }
-
-      #else
-
-
-        if(adc_buffer.l_tx2 < ADC1_ZERO) {
-          cmd1_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_MIN, ADC1_ZERO) - ADC1_ZERO) / ((ADC1_ZERO - ADC1_MIN) / ADC1_MULT_NEG); // ADC1 - Steer
-        } else {
-          cmd1_ADC = (CLAMP(adc_buffer.l_tx2, ADC1_ZERO, ADC1_MAX) - ADC1_ZERO) / ((ADC1_MAX - ADC1_ZERO) / ADC1_MULT_POS); // ADC1 - Steer
-        }
-
-        if(adc_buffer.l_rx2 < ADC2_ZERO) {
-          cmd2_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_MIN, ADC2_ZERO) - ADC2_ZERO) / ((ADC2_ZERO - ADC2_MIN) / ADC2_MULT_NEG); // ADC2 - Speed
-        } else {
-          cmd2_ADC = (CLAMP(adc_buffer.l_rx2, ADC2_ZERO, ADC2_MAX) - ADC2_ZERO) / ((ADC2_MAX - ADC2_ZERO) / ADC2_MULT_POS); // ADC2 - Speed
-        }
-
-
-        if((adc_buffer.l_rx2 < ADC_OFF_START) || (adc_buffer.l_rx2 > ADC_OFF_END) ) {
+      } else {
+        if((adcrFiltered < ADC_OFF_START) || (adcrFiltered > ADC_OFF_END) ) {
           ADCcontrolActive = true;
         } else {
           if(ADCcontrolActive) {
@@ -570,13 +560,11 @@ int main(void) {
           }
           ADCcontrolActive = false;
         }
+      }
 
-      #endif
-
-      #ifdef ADC_REVERSE_STEER
+      if(ADC_REVERSE_STEER) {
         cmd1_ADC = -cmd1_ADC;
-      #endif
-
+      }
       // use ADCs as button inputs:
       button1_ADC = (uint8_t)(adc_buffer.l_tx2 > 2000);  // ADC1
       button2_ADC = (uint8_t)(adc_buffer.l_rx2 > 2000);  // ADC2
@@ -779,25 +767,20 @@ int main(void) {
       if(1) {
     #endif
 
-    #ifdef ADC_TANKMODE
-        if(ADCcontrolActive) {
-          pwms[0] = steer * (1.0 - FILTER) + cmd1 * FILTER;
-          pwms[1] = speed * (1.0 - FILTER) + cmd2 * FILTER;
+        if(ADC_TANKMODE && ADCcontrolActive) {
+          pwms[0] = pwms[0] * (1.0 - FILTER) + cmd1 * FILTER;
+          pwms[1] = pwms[1] * (1.0 - FILTER) + cmd2 * FILTER;
         } else {
-    #endif
-        pwms[0] = CLAMP(speed * SPEED_COEFFICIENT -  steer * STEER_COEFFICIENT, -1000, 1000);
-        pwms[1] = CLAMP(speed * SPEED_COEFFICIENT +  steer * STEER_COEFFICIENT, -1000, 1000);
-
-    #ifdef ADC_TANKMODE
+          pwms[0] = CLAMP(speed * SPEED_COEFFICIENT -  steer * STEER_COEFFICIENT, -1000, 1000);
+          pwms[1] = CLAMP(speed * SPEED_COEFFICIENT +  steer * STEER_COEFFICIENT, -1000, 1000);
         }
-    #endif
       }
 
-    #ifdef SWITCH_WHEELS
+    if(SWITCH_WHEELS) {
       int tmppwm = pwms[1];
       pwms[1] = pwms[0];
       pwms[0] = tmppwm;
-    #endif
+    }
 
     #ifdef ADDITIONAL_CODE
       ADDITIONAL_CODE;
@@ -806,16 +789,18 @@ int main(void) {
         pwms[0] = pwms[1] = 0;
       }
 
-    #ifdef INVERT_R_DIRECTION
+    if(INVERT_R_DIRECTION) {
       pwmr = pwms[1];
-    #else
+    } else {
       pwmr = -pwms[1];
-    #endif
-    #ifdef INVERT_L_DIRECTION
+    }
+
+    if(INVERT_L_DIRECTION) {
       pwml = -pwms[0];
-    #else
+    } else {
       pwml = pwms[0];
-    #endif
+    }
+
 
 //    for (int i = 0; i < 2; i++){
 //      lastspeeds[i] = pwms[i];
@@ -980,6 +965,10 @@ int main(void) {
     // select next loop start point
     // move out '5ms' trigger on by 5ms
     timeStats.start_processing_us = timeStats.start_processing_us + timeStats.nominal_delay_us;
+
+    ////////////////////////////////
+    // increase timeout
+    if(!enable_immediate) timeout++;
   }
 }
 
