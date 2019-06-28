@@ -93,7 +93,7 @@ int buzzerLen = 0;
 
 extern uint8_t enable; // global variable for motor enable
 
-extern volatile uint32_t timeout; // global variable for timeout
+extern volatile uint32_t input_timeout_counter; // global variable for input timeout
 extern float batteryVoltage; // global variable for battery voltage
 
 uint32_t inactivity_timeout_counter;
@@ -590,11 +590,11 @@ int main(void) {
               }
               // don't set default cilours below
               setcolours = 0;
-              timeout = 0;
+              input_timeout_counter = 0;
               inactivity_timeout_counter = 0;
             } else {
               pwms[0] = pwms[1] = 0;
-              timeout = 0;
+              input_timeout_counter = 0;
               if (enable) {
                 consoleLog("disable by charging\r\n");
                 enable = 0;
@@ -705,7 +705,7 @@ int main(void) {
         if(ADCcontrolActive) {
           cmd1 = cmd1_ADC;
           cmd2 = cmd2_ADC;
-          timeout = 0;
+          input_timeout_counter = 0;
         }
       #endif
 
@@ -929,8 +929,8 @@ int main(void) {
     timeStats.start_processing_us = timeStats.start_processing_us + timeStats.nominal_delay_us;
 
     ////////////////////////////////
-    // increase timeout
-    if(!enable_immediate) timeout++;
+    // increase input_timeout_counter
+    if(!enable_immediate) input_timeout_counter++;
   }
 }
 

@@ -178,8 +178,8 @@
   #define DELAY_IN_MAIN_LOOP 5        // in ms. default 5. it is independent of all the timing critical stuff. do not touch if you do not know what you are doing.
 #endif
 
-#ifndef TIMEOUT
-  #define TIMEOUT          30         // number of wrong / missing input commands before emergency off
+#ifndef INPUT_TIMEOUT
+  #define INPUT_TIMEOUT    30         // number of wrong / missing input commands before wheels are disabled
 #endif
 // ############################### GENERAL ###############################
 
