@@ -281,7 +281,7 @@
 
 // ###### CONTROL VIA TWO POTENTIOMETERS ######
 // ADC-calibration to cover the full poti-range: connect potis to left sensor board cable (0 to 3.3V) (do NOT use the red 15V wire in the cable!). see <How to calibrate>. turn the potis to minimum position, write value 1 to ADC1_MIN and value 2 to ADC2_MIN. turn to maximum position and repeat it for ADC?_MAX. make, flash and test it.
-Check out https://github.com/bipropellant/bipropellant-hoverboard-firmware/wiki/ADC-Configurations for sample configurations.
+// Check out https://github.com/bipropellant/bipropellant-hoverboard-firmware/wiki/ADC-Configurations for sample configurations.
 
 //#define CONTROL_ADC               // use ADC as input. disable DEBUG_SERIAL_USART2!
 #ifndef ADC1_MIN
