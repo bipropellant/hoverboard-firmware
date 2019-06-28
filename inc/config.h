@@ -281,6 +281,8 @@
 
 // ###### CONTROL VIA TWO POTENTIOMETERS ######
 // ADC-calibration to cover the full poti-range: connect potis to left sensor board cable (0 to 3.3V) (do NOT use the red 15V wire in the cable!). see <How to calibrate>. turn the potis to minimum position, write value 1 to ADC1_MIN and value 2 to ADC2_MIN. turn to maximum position and repeat it for ADC?_MAX. make, flash and test it.
+Check out https://github.com/bipropellant/bipropellant-hoverboard-firmware/wiki/ADC-Configurations for sample configurations.
+
 //#define CONTROL_ADC               // use ADC as input. disable DEBUG_SERIAL_USART2!
 #ifndef ADC1_MIN
   #define ADC1_MIN         0        // min ADC1-value while poti at minimum-position (0 - 4095)
@@ -295,11 +297,11 @@
 #endif
 
 #ifndef ADC1_MULT_NEG
-  #define ADC1_MULT_NEG  500.0f     // Use 1000.0f to calibrate form MIN to MAX
+  #define ADC1_MULT_NEG  500.0f     // Use 1000.0f to calibrate from MIN to MAX
 #endif
 
 #ifndef ADC1_MULT_POS
-  #define ADC1_MULT_POS 1500.0f     // Use 1000.0f to calibrate form MIN to MAX
+  #define ADC1_MULT_POS 1500.0f     // Use 1000.0f to calibrate from MIN to MAX
 #endif
 
 
@@ -316,11 +318,11 @@
 #endif
 
 #ifndef ADC2_MULT_NEG
-  #define ADC2_MULT_NEG  300.0f     // Use 1000.0f to calibrate form MIN to MAX
+  #define ADC2_MULT_NEG  300.0f     // Use 1000.0f to calibrate from MIN to MAX
 #endif
 
 #ifndef ADC2_MULT_POS
-  #define ADC2_MULT_POS  300.0f     // Use 1000.0f to calibrate form MIN to MAX
+  #define ADC2_MULT_POS  300.0f     // Use 1000.0f to calibrate from MIN to MAX
 #endif
 
 
