@@ -42,8 +42,8 @@ typedef struct MsgToHoverboard_t{
   unsigned char len;  // len is len of bytes to follow, NOT including CS
   unsigned char cmd;  // read or write
   unsigned char code; // code of value to write
-  int pwm1;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for first wheel
-  int pwm2;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for second wheel
+  int32_t pwm1;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for first wheel
+  int32_t pwm2;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for second wheel
   unsigned char CS;   // checksumm
 };
 
@@ -54,7 +54,7 @@ typedef union UART_Packet_t{
 
 char hoverboardCI = 0;  // Global variable which tracks CI
 
-void setHoverboardPWM( int16_t pwm1, int16_t pwm2 )
+void setHoverboardPWM( int32_t pwm1, int32_t pwm2 )
 {
   UART_Packet_t ups;
 
