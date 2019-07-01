@@ -33,7 +33,7 @@ Protocol.c implements the bones of an acked/checksummed serial protocol.  Embryo
 
 Sample C++ code to send pwm and steer:
 
-` setHoverboardPWM(200,50); // sends 200 as pwm and 50 steer `
+` setHoverboardPWM(300,-300); // sends 300 (=30% duty cycle forward) to one wheel and -300 (=30% duty cycle backwards) to the other `
 ```
 
 typedef struct MsgToHoverboard_t{
@@ -42,8 +42,8 @@ typedef struct MsgToHoverboard_t{
   unsigned char len;  // len is len of bytes to follow, NOT including CS
   unsigned char cmd;  // read or write
   unsigned char code; // code of value to write
-  int16_t pwm1;       // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for first wheel
-  int16_t pwm2;       // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for second wheel
+  int pwm1;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for first wheel
+  int pwm2;           // absolute value ranging from -1000 to 1000 .. Duty Cycle *10 for second wheel
   unsigned char CS;   // checksumm
 };
 
@@ -60,7 +60,7 @@ void setHoverboardPWM( int16_t pwm1, int16_t pwm2 )
 
   ups.msgToHover.SOM = 4 ;    // Start of Message, 4 for No ACKs;
   ups.msgToHover.CI = ++hoverboardCI; // Message Continuity Indicator. Subsequent Messages with the same CI are discarded, need to be incremented.
-  ups.msgToHover.len = 6;     // cmd(1), code(1), pwm1(2) and pwm2(2)
+  ups.msgToHover.len = 1 + 1 + 4 + 4 ; // cmd(1), code(1), pwm1(4) and pwm2(4)
   ups.msgToHover.cmd  = 'r';  // Pretend to send answer to read request. This way HB will not reply. Change to 'W' to get confirmation from board
   ups.msgToHover.code = 0x0E; // "simpler PWM"
   ups.msgToHover.pwm1 = pwm1;
@@ -71,7 +71,7 @@ void setHoverboardPWM( int16_t pwm1, int16_t pwm2 )
     ups.msgToHover.CS -= ups.UART_Packet[i+1];
   }
 
-  Serial1.write(ups.UART_Packet,sizeof(UART_Packet_t));
+  Serial.write(ups.UART_Packet,sizeof(UART_Packet_t));
 }
 ```
 This code is only able to write values to the board, replies can not be parsed. For more information check the [hoverboard protocol wiki](https://github.com/bipropellant/bipropellant-protocol/wiki) and [examples](https://github.com/bipropellant/bipropellant-protocol/tree/master/examples).
