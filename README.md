@@ -59,7 +59,7 @@ void setHoverboardPWM( int16_t pwm1, int16_t pwm2 )
   UART_Packet_t ups;
 
   ups.msgToHover.SOM = 4 ;    // Start of Message, 4 for No ACKs;
-  ups.MsgToHover.CI = ++hoverboardCI; // Message Continuity Indicator. Subsequent Messages with the same CI are discarded, need to be incremented.
+  ups.msgToHover.CI = ++hoverboardCI; // Message Continuity Indicator. Subsequent Messages with the same CI are discarded, need to be incremented.
   ups.msgToHover.len = 6;     // cmd(1), code(1), pwm1(2) and pwm2(2)
   ups.msgToHover.cmd  = 'r';  // Pretend to send answer to read request. This way HB will not reply. Change to 'W' to get confirmation from board
   ups.msgToHover.code = 0x0E; // "simpler PWM"
