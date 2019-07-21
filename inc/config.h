@@ -271,6 +271,10 @@
   #define TEMP_POWEROFF           65        // overheat poweroff. (while not driving) [°C]
 #endif
 
+#ifndef ENABLE_INACTIVITY_TIMEOUT
+  #define ENABLE_INACTIVITY_TIMEOUT 1
+#endif
+
 #ifndef INACTIVITY_TIMEOUT
   #define INACTIVITY_TIMEOUT 8        // minutes of not driving until poweroff. it is not very precise.
 #endif
@@ -365,8 +369,9 @@
 // left sensor board cable. keep cable short, use shielded cable, use ferrits, stabalize voltage in nunchuck, use the right one of the 2 types of nunchucks, add i2c pullups. use original nunchuck. most clones does not work very well.
 //#define CONTROL_NUNCHUCK            // use nunchuck as input. disable DEBUG_SERIAL_USART3!
 
-
-//#define WHEEL_SIZE_INCHES 8.5 - set to your wheelsize to override the default 6.5
+#ifndef WHEEL_SIZE_INCHES
+  #define WHEEL_SIZE_INCHES 6.5  //set to your wheelsize to override the default 6.5
+#endif
 
 
 // ############################### SOFTWARE SERIAL ###############################
@@ -414,7 +419,10 @@
   #define SWITCH_WHEELS       0    // switch right and left wheel. Watch out, you probably also need to invert directions.
 #endif
 #ifndef BEEPS_BACKWARD
-  #define BEEPS_BACKWARD 0    // 0 or 1
+  #define BEEPS_BACKWARD      0    // 0 or 1
+#endif
+#ifndef BEEPS_ON_OFF
+  #define BEEPS_ON_OFF        1    // Beeps on starting/stopping hoverboard
 #endif
 
 

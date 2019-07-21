@@ -122,10 +122,12 @@ void poweroff() {
     if (ABS(speed) < 20) {
         buzzerPattern = 0;
         enable = 0;
+        #if BEEPS_ON_OFF
         for (int i = 0; i < 8; i++) {
             buzzerFreq = i;
             HAL_Delay(100);
         }
+        #endif
         HAL_GPIO_WritePin(OFF_PORT, OFF_PIN, 0);
 
         // if we are powered from sTLink, this bit allows the system to be started again with the button.
@@ -260,7 +262,7 @@ int main(void) {
     & HallData[0].HallPosn,
     & HallData[1].HallPosn,
     HALL_POSN_PER_REV,
-    (DEFAULT_WHEEL_SIZE_INCHES*25.4),
+    (WHEEL_SIZE_INCHES*25.4),
     WHEELBASE_MM, 1);
 #endif
 
@@ -319,12 +321,13 @@ int main(void) {
   electrical_measurements.dcCurLim = MIN(DC_CUR_LIMIT*100, FlashContent.MaxCurrLim);
 
 
-
+  #if BEEPS_ON_OFF
   for (int i = 8; i >= 0; i--) {
     buzzerFreq = i;
     HAL_Delay(100);
   }
   buzzerFreq = 0;
+  #endif
 
   HAL_GPIO_WritePin(LED_PORT, LED_PIN, 1);
 
@@ -807,31 +810,39 @@ int main(void) {
 
     // if we plug in the charger, keep us alive
     // also if we have deliberately turned off poweroff over serial
+    #if ENABLE_INACTIVITY_TIMEOUT
     if (electrical_measurements.charging || disablepoweroff){
       inactivity_timeout_counter = 0;
     }
+    #endif
 
     // ####### BEEP AND EMERGENCY POWEROFF #######
-    if (TEMP_POWEROFF_ENABLE && board_temp_deg_c >= TEMP_POWEROFF && ABS(speed) < 20){  // poweroff before mainboard burns OR low bat 3
+    #if TEMP_POWEROFF_ENABLE
+    if (board_temp_deg_c >= TEMP_POWEROFF && ABS(speed) < 20){  // poweroff before mainboard burns OR low bat 3
       consoleLog("power off by temp\r\n");
       poweroff();
     }
+    #endif
 
     if (batteryVoltage < ((float)BAT_LOW_DEAD * (float)BAT_NUMBER_OF_CELLS) && ABS(speed) < 20) {  // poweroff before mainboard burns OR low bat 3
       consoleLog("power off by low voltage\r\n");
       poweroff();
-    } else if (TEMP_WARNING_ENABLE && board_temp_deg_c >= TEMP_WARNING) {  // beep if mainboard gets hot
+    #if TEMP_WARNING_ENABLE
+    } else if (board_temp_deg_c >= TEMP_WARNING) {  // beep if mainboard gets hot
       buzzerFreq = 4;
       buzzerPattern = 1;
+    #endif
     } else if (batteryVoltage < ((float)BAT_LOW_LVL1 * (float)BAT_NUMBER_OF_CELLS) && batteryVoltage > ((float)BAT_LOW_LVL2 * (float)BAT_NUMBER_OF_CELLS) && BAT_LOW_LVL1_ENABLE) {  // low bat 1: slow beep
       buzzerFreq = 5;
       buzzerPattern = 42;
     } else if (batteryVoltage < ((float)BAT_LOW_LVL2 * (float)BAT_NUMBER_OF_CELLS) && batteryVoltage > ((float)BAT_LOW_DEAD * (float)BAT_NUMBER_OF_CELLS) && BAT_LOW_LVL2_ENABLE) {  // low bat 2: fast beep
       buzzerFreq = 5;
       buzzerPattern = 6;
-    } else if (BEEPS_BACKWARD && speed < -50) {  // backward beep
+    #if BEEPS_BACKWARD
+    } else if (speed < -50) {  // backward beep
       buzzerFreq = 5;
       buzzerPattern = 1;
+    #endif
     } else {  // do not beep
       if (buzzerLen > 0){
         buzzerLen--;
@@ -843,6 +854,7 @@ int main(void) {
 
 
     // ####### INACTIVITY TIMEOUT #######
+    #if ENABLE_INACTIVITY_TIMEOUT
     if (ABS(pwms[0]) > 50 || ABS(pwms[1]) > 50) {
       inactivity_timeout_counter = 0;
     } else {
@@ -871,6 +883,7 @@ int main(void) {
       consoleLog("power off by 60s inactivity\r\n");
       poweroff();
     }
+    #endif
 
 
     if (powerofftimer > 0){
