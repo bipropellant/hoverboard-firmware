@@ -373,12 +373,6 @@
   #define WHEEL_SIZE_INCHES 6.5  //set to your wheelsize to override the default 6.5
 #endif
 
-
-// ############################### SOFTWARE SERIAL ###############################
-//
-// there should now be a free choice of serial GPIO pins
-#define SOFTWARE_SERIAL_BAUD 9600
-
 // ############################### SERIAL PROTOCOL ###############################
 #define NO_PROTOCOL 0
 #define INCLUDE_PROTOCOL2 2 // enables processing of input characters through 'machine_protocol.c'
