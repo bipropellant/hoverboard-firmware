@@ -408,7 +408,7 @@ int main(void) {
 
     // delay until we should start processing
     while (timeStats.now_us < timeStats.start_processing_us){
-      #if (INCLUDE_PROTOCOL == INCLUDE_PROTOCOL2)
+      #if (INCLUDE_PROTOCOL)
         #ifdef SOFTWARE_SERIAL
           while ( softwareserial_available() > 0 ) {
             protocol_byte( &sSoftwareSerial, (unsigned char) softwareserial_getrx() );
@@ -621,7 +621,7 @@ int main(void) {
 
     #endif // READ_SENSOR
 
-    #if defined(INCLUDE_PROTOCOL)||defined(READ_SENSOR)
+    #if INCLUDE_PROTOCOL||defined(READ_SENSOR)
         if (!sensor_control || !FlashContent.HoverboardEnable){
           if ((last_control_type != control_type) || (!enable)){
             // nasty things happen if it's not re-initialised
@@ -718,7 +718,7 @@ int main(void) {
         sensor_send_lights();
       #endif
 
-    #endif // INCLUDE_PROTOCOL)||defined(READ_SENSOR)
+    #endif // INCLUDE_PROTOCOL or READ_SENSOR
 
       // ####### LOW-PASS FILTER #######
       steer = steer * (1.0 - FILTER) + cmd1 * FILTER;
@@ -726,10 +726,8 @@ int main(void) {
 
 
       // ####### MIXER #######
-    #ifdef INCLUDE_PROTOCOL
+    #if (INCLUDE_PROTOCOL)
       if(ADCcontrolActive) {
-    #else
-      if(1) {
     #endif
 
         if(ADC_TANKMODE && ADCcontrolActive) {
@@ -739,7 +737,9 @@ int main(void) {
           pwms[0] = CLAMP(speed * SPEED_COEFFICIENT -  steer * STEER_COEFFICIENT, -1000, 1000);
           pwms[1] = CLAMP(speed * SPEED_COEFFICIENT +  steer * STEER_COEFFICIENT, -1000, 1000);
         }
+      #if (INCLUDE_PROTOCOL)
       }
+      #endif
 
     if(SWITCH_WHEELS) {
       int tmppwm = pwms[1];

@@ -374,12 +374,9 @@
 #endif
 
 // ############################### SERIAL PROTOCOL ###############################
-#define NO_PROTOCOL 0
-#define INCLUDE_PROTOCOL2 2 // enables processing of input characters through 'machine_protocol.c'
 
-//#define INCLUDE_PROTOCOL NO_PROTOCOL
 #ifndef INCLUDE_PROTOCOL
-  #define INCLUDE_PROTOCOL INCLUDE_PROTOCOL2
+  #define INCLUDE_PROTOCOL 1 // set to 0 to disable, 1 to enable
 #endif
 // Log PWM value in position/speed control mode
 //define LOG_PWM
