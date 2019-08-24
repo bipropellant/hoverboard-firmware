@@ -32,6 +32,7 @@
 #include "softwareserial.h"
 //#include "hd44780.h"
 #include "pid.h"
+#include "pid_autotuner.h"
 #include "flashcontent.h"
 
 #include "deadreckoner.h"
@@ -166,21 +167,27 @@ typedef struct tag_PID_FLOATS{
 
 // setup pid control for left and right speed.
 pid_controller  PositionPid[2];
+pid_autotune PosPidAutoT[2];
 // temp floats
 PID_FLOATS PositionPidFloats[2] = {
   { 0, 0, 0,   0 },
   { 0, 0, 0,   0 }
 };
 pid_controller  SpeedPid[2];
+pid_autotune SpeedPidAutoT[2];
 // temp floats
 PID_FLOATS SpeedPidFloats[2] = {
   { 0, 0, 0,   0 },
   { 0, 0, 0,   0 }
 };
+bool tuningEnabled;
 
 void init_PID_control(){
   memset(&PositionPid, 0, sizeof(PositionPid));
+  memset(&PosPidAutoT, 0, sizeof(PosPidAutoT));
   memset(&SpeedPid, 0, sizeof(SpeedPid));
+  memset(&SpeedPidAutoT, 0, sizeof(SpeedPidAutoT));
+
   for (int i = 0; i < 2; i++){
     PositionPidFloats[i].in = 0;
     PositionPidFloats[i].set = 0;
@@ -188,6 +195,7 @@ void init_PID_control(){
       (float)FlashContent.PositionKpx100/100.0,
       (float)FlashContent.PositionKix100/100.0,
       (float)FlashContent.PositionKdx100/100.0);
+    at_create(&PosPidAutoT[i],&PositionPidFloats[i].in, &PositionPidFloats[i].out);
 
     // maximum pwm outputs for positional control; limits speed
   	pid_limits(&PositionPid[i], -FlashContent.PositionPWMLimit, FlashContent.PositionPWMLimit);
@@ -198,6 +206,7 @@ void init_PID_control(){
       (float)FlashContent.SpeedKpx100/100.0,
       (float)FlashContent.SpeedKix100/100.0,
       (float)FlashContent.SpeedKdx100/100.0);
+    at_create(&SpeedPidAutoT[i],&SpeedPidFloats[i].in, &SpeedPidFloats[i].out);
 
     // maximum increment to pwm outputs for speed control; limits changes in speed (accelleration)
   	pid_limits(&SpeedPid[i], -FlashContent.SpeedPWMIncrementLimit, FlashContent.SpeedPWMIncrementLimit);
@@ -638,8 +647,18 @@ int main(void) {
                   PositionPidFloats[i].set = PosnData.wanted_posn_mm[i];
                   PositionPidFloats[i].in = HallData[i].HallPosn_mm;
 #endif
-                  // Compute new PID output value
-                  pid_compute(&PositionPid[i]);
+                  if (tuningEnabled){
+                    int res = Runtime(&PosPidAutoT[i]);
+                    if (res!=0){
+                      tuningEnabled = false;
+                      char tmp[50];
+                      sprintf(tmp, "Pos Pid #%d= P:%.2f I:%.2f D:%.2f\r\n", i, GetKp(&PosPidAutoT[i]), GetKi(&PosPidAutoT[i]), GetKd(&PosPidAutoT[i]));
+                      consoleLog(tmp);
+                    }
+                  }else{
+                    // Compute new PID output value
+                    pid_compute(&PositionPid[i]);
+                  }
                   //Change actuator value
                   int pwm = PositionPidFloats[i].out;
                   pwms[i] = pwm;
@@ -675,8 +694,18 @@ int main(void) {
                   }
                   SpeedPidFloats[i].in = SpeedPidFloats[i].in/(float)SpeedPidFloats[i].count;
                   SpeedPidFloats[i].count = 0;
-                  // Compute new PID output value
-                  pid_compute(&SpeedPid[i]);
+                  if (tuningEnabled){
+                    int res = Runtime(&SpeedPidAutoT[i]);
+                    if (res!=0){
+                      tuningEnabled = false;
+                      char tmp[50];
+                      sprintf(tmp, "Speed Pid #%d= P:%.2f I:%.2f D:%.2f\r\n", i, GetKp(&SpeedPidAutoT[i]), GetKi(&SpeedPidAutoT[i]), GetKd(&SpeedPidAutoT[i]));
+                      consoleLog(tmp);
+                    }
+                  }else{
+                    // Compute new PID output value
+                    pid_compute(&SpeedPid[i]);
+                  }
                   //Change actuator value
                   int pwm = SpeedPidFloats[i].out;
                   if (belowmin){
