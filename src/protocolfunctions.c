@@ -346,7 +346,7 @@ void fn_FlashContentPID ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, u
 void fn_FlashContentMaxCurrLim ( PROTOCOL_STAT *s, PARAMSTAT *param, uint8_t fn_type, unsigned char *content, int len ) {
     switch (fn_type) {
         case FN_TYPE_POST_WRITE:
-            electrical_measurements.dcCurLim = MIN(DC_CUR_LIMIT, FlashContent.MaxCurrLim / 100);
+            electrical_measurements.dcCurLim = MIN(DC_CUR_LIMIT*100, FlashContent.MaxCurrLim);
             break;
     }
 }
