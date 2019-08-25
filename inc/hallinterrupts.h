@@ -71,7 +71,6 @@ extern TIME_STATS timeStats;
 #define HALL_INTERRUPT_TIMER_FREQ 100000
 
 #define HALL_POSN_PER_REV 90
-#define DEFAULT_WHEEL_SIZE_INCHES 6.5
 
 //////////////////////////////////////////////////////////////
 // this is the Hall data we gather, and can be read elsewhere

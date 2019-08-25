@@ -2,6 +2,7 @@ build/*
 !build/hover.hex
 .pioenvs
 .piolibdeps
+.pio
 .vscode/*
 lib/readme.txt
 _autosave*

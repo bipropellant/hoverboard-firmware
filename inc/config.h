@@ -271,6 +271,10 @@
   #define TEMP_POWEROFF           65        // overheat poweroff. (while not driving) [°C]
 #endif
 
+#ifndef ENABLE_INACTIVITY_TIMEOUT
+  #define ENABLE_INACTIVITY_TIMEOUT 1
+#endif
+
 #ifndef INACTIVITY_TIMEOUT
   #define INACTIVITY_TIMEOUT 8        // minutes of not driving until poweroff. it is not very precise.
 #endif
@@ -365,22 +369,14 @@
 // left sensor board cable. keep cable short, use shielded cable, use ferrits, stabalize voltage in nunchuck, use the right one of the 2 types of nunchucks, add i2c pullups. use original nunchuck. most clones does not work very well.
 //#define CONTROL_NUNCHUCK            // use nunchuck as input. disable DEBUG_SERIAL_USART3!
 
-
-//#define WHEEL_SIZE_INCHES 8.5 - set to your wheelsize to override the default 6.5
-
-
-// ############################### SOFTWARE SERIAL ###############################
-//
-// there should now be a free choice of serial GPIO pins
-#define SOFTWARE_SERIAL_BAUD 9600
+#ifndef WHEEL_SIZE_INCHES
+  #define WHEEL_SIZE_INCHES 6.5  //set to your wheelsize to override the default 6.5
+#endif
 
 // ############################### SERIAL PROTOCOL ###############################
-#define NO_PROTOCOL 0
-#define INCLUDE_PROTOCOL2 2 // enables processing of input characters through 'machine_protocol.c'
 
-//#define INCLUDE_PROTOCOL NO_PROTOCOL
 #ifndef INCLUDE_PROTOCOL
-  #define INCLUDE_PROTOCOL INCLUDE_PROTOCOL2
+  #define INCLUDE_PROTOCOL 1 // set to 0 to disable, 1 to enable
 #endif
 // Log PWM value in position/speed control mode
 //define LOG_PWM
@@ -414,7 +410,10 @@
   #define SWITCH_WHEELS       0    // switch right and left wheel. Watch out, you probably also need to invert directions.
 #endif
 #ifndef BEEPS_BACKWARD
-  #define BEEPS_BACKWARD 0    // 0 or 1
+  #define BEEPS_BACKWARD      0    // 0 or 1
+#endif
+#ifndef BEEPS_ON_OFF
+  #define BEEPS_ON_OFF        1    // Beeps on starting/stopping hoverboard
 #endif
 
 

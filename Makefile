@@ -48,6 +48,7 @@ src/flasharea.c \
 src/flashaccess.c \
 src/stm32f1xx_it.c \
 src/pid.c \
+src/pid_autotuner.c \
 src/deadreckoner.c \
 src/hbprotocol/protocol.c \
 src/hbprotocol/machine_protocol.c \
